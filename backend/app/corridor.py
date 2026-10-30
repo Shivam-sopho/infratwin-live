@@ -1,0 +1,172 @@
+"""Seed data for the demo infrastructure corridor (simulated assets, real-world coordinates).
+
+Component geometry here is a placeholder BIM: simple primitives that the Scan-to-BIM
+(Union-Find) stage will later replace with segmented meshes.
+"""
+
+from .models import Asset, Component, Geometry, Sensor
+
+# kind -> (label, unit, baseline, watch threshold, critical threshold). Higher = worse.
+SENSOR_TEMPLATES: dict[str, tuple[str, str, float, float, float]] = {
+    "strain": ("Strain", "µε", 180, 320, 450),
+    "accel": ("Vibration RMS", "mg", 12, 25, 40),
+    "deflection": ("Mid-span deflection", "mm", 8, 18, 28),
+    "load": ("Traffic load", "kN", 900, 1600, 2000),
+    "convergence": ("Lining convergence", "mm", 2.5, 6, 10),
+    "crack_width": ("Crack meter", "mm", 0.15, 0.3, 0.5),
+    "uplift": ("Uplift pressure", "kPa", 140, 220, 280),
+    "seepage": ("Seepage", "L/min", 18, 35, 50),
+    "displacement": ("Crest displacement", "mm", 3, 7, 11),
+    "wind": ("Wind speed", "m/s", 6, 18, 25),
+    "temperature": ("Air temperature", "°C", 26, 40, 46),
+}
+
+# Sensors that describe the environment / loading rather than structural response;
+# injected structural anomalies leave these untouched.
+ENVIRONMENTAL_KINDS = {"load", "wind", "temperature"}
+
+
+class _Builder:
+    def __init__(self, asset_id: str):
+        self.asset_id = asset_id
+        self.components: list[Component] = []
+        self.sensors: list[Sensor] = []
+
+    def add(self, cid: str, name: str, kind: str, geometry: Geometry | None, sensor_kinds: list[str]):
+        full_id = f"{self.asset_id}.{cid}"
+        sensor_ids = []
+        for k in sensor_kinds:
+            label, unit, baseline, watch, critical = SENSOR_TEMPLATES[k]
+            sid = f"{full_id}.{k}"
+            self.sensors.append(
+                Sensor(
+                    id=sid,
+                    component_id=full_id,
+                    kind=k,
+                    label=label,
+                    unit=unit,
+                    baseline=baseline,
+                    watch=watch,
+                    critical=critical,
+                )
+            )
+            sensor_ids.append(sid)
+        self.components.append(
+            Component(id=full_id, asset_id=self.asset_id, name=name, kind=kind, geometry=geometry, sensor_ids=sensor_ids)
+        )
+
+
+def _bridge() -> Asset:
+    b = _Builder("B07")
+    span, n_spans = 30.0, 7
+    half = span * n_spans / 2
+    pier_h, girder_h = 14.0, 2.2
+
+    b.add("A1", "Abutment West", "abutment", Geometry(shape="box", position=(-half - 2, 8, 0), size=(4, 16, 14)), ["strain"])
+    for i in range(1, n_spans):
+        x = -half + span * i
+        b.add(
+            f"P{i}",
+            f"Pier {i}",
+            "pier",
+            Geometry(shape="box", position=(x, pier_h / 2, 0), size=(2.4, pier_h, 7)),
+            ["strain", "accel"],
+        )
+    for i in range(n_spans):
+        x = -half + span * (i + 0.5)
+        b.add(
+            f"G{i + 1}",
+            f"Box Girder {chr(ord('A') + i)}",
+            "girder",
+            Geometry(shape="box", position=(x, pier_h + girder_h / 2, 0), size=(span - 0.3, girder_h, 11)),
+            ["strain", "deflection"],
+        )
+    b.add(
+        "DK",
+        "Deck Slab",
+        "deck",
+        Geometry(shape="box", position=(0, pier_h + girder_h + 0.2, 0), size=(span * n_spans, 0.4, 14)),
+        ["load"],
+    )
+    b.add("A2", "Abutment East", "abutment", Geometry(shape="box", position=(half + 2, 8, 0), size=(4, 16, 14)), ["strain"])
+    b.add("WX", "Weather Station", "environment", None, ["wind", "temperature"])
+
+    return Asset(
+        id="B07",
+        name="Riverside Viaduct B-07",
+        type="bridge",
+        lng=73.8785,
+        lat=18.5395,
+        heading_deg=20,
+        description="7-span prestressed concrete box-girder viaduct, 210 m, 4-lane highway.",
+        components=b.components,
+        sensors=b.sensors,
+    )
+
+
+def _tunnel() -> Asset:
+    t = _Builder("T02")
+    ring_len, n_rings, radius = 12.0, 6, 6.0
+
+    t.add("PT", "Portal Headwall", "portal", Geometry(shape="box", position=(0, 5, -0.75), size=(18, 10, 1.5)), ["crack_width"])
+    for i in range(n_rings):
+        z = ring_len * (i + 0.5)
+        t.add(
+            f"R{i + 1}",
+            f"Arch Ring {i + 1}",
+            "arch_ring",
+            Geometry(shape="arch", position=(0, 0, z), size=(radius, ring_len - 0.2, 0)),
+            ["convergence", "strain"],
+        )
+    t.add(
+        "INV",
+        "Invert Slab",
+        "invert",
+        Geometry(shape="box", position=(0, -0.3, ring_len * n_rings / 2), size=(radius * 2, 0.6, ring_len * n_rings)),
+        ["crack_width"],
+    )
+
+    return Asset(
+        id="T02",
+        name="Ghat Section Tunnel T-02",
+        type="tunnel",
+        lng=73.3700,
+        lat=18.7530,
+        heading_deg=-35,
+        description="Twin-lane NATM road tunnel portal with shotcrete + cast in-situ lining.",
+        components=t.components,
+        sensors=t.sensors,
+    )
+
+
+def _dam() -> Asset:
+    d = _Builder("D01")
+    block_w, n_blocks, height, base = 20.0, 8, 40.0, 30.0
+    half = block_w * n_blocks / 2
+
+    for i in range(n_blocks):
+        x = -half + block_w * (i + 0.5)
+        d.add(
+            f"M{i + 1}",
+            f"Monolith {i + 1}",
+            "monolith",
+            Geometry(shape="box", position=(x, height / 2, 0), size=(block_w - 0.4, height, base)),
+            ["uplift", "displacement"],
+        )
+    d.add("GAL", "Drainage Gallery", "gallery", None, ["seepage"])
+
+    return Asset(
+        id="D01",
+        name="Reservoir Gravity Dam D-01",
+        type="dam",
+        lng=73.7700,
+        lat=18.4440,
+        heading_deg=80,
+        description="Concrete gravity dam, 8 monoliths, 160 m crest, 40 m max height.",
+        components=d.components,
+        sensors=d.sensors,
+    )
+
+
+def build_corridor() -> list[Asset]:
+    return [_bridge(), _tunnel(), _dam()]

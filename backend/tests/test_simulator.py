@@ -1,0 +1,26 @@
+import time
+
+from app.corridor import build_corridor
+from app.simulator import Simulator, _classify
+
+
+def test_classify_hysteresis():
+    sim = Simulator(build_corridor())
+    s = sim.sensors["B07.P4.strain"]  # watch 320, critical 450
+    assert _classify(s, 200, "nominal") == "nominal"
+    assert _classify(s, 330, "nominal") == "watch"
+    assert _classify(s, 460, "watch") == "critical"
+    assert _classify(s, 440, "critical") == "critical"  # within 5% margin, holds
+    assert _classify(s, 200, "critical") == "nominal"
+
+
+def test_anomaly_escalates_to_critical_and_alerts():
+    sim = Simulator(build_corridor())
+    sim.inject_anomaly("B07.P4")
+    sim._anomalies["B07.P4"] = time.time() - 60  # ramp fully applied
+    _, alerts = sim.step()
+    status = sim.status()
+    assert status["components"]["B07.P4"] == "critical"
+    assert status["assets"]["B07"] == "critical"
+    assert status["components"]["B07.P3"] != "critical"
+    assert any(a.component_id == "B07.P4" and a.level == "critical" for a in alerts)

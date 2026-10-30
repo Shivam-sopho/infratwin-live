@@ -1,0 +1,67 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg: #0b0f14;
+  --color-panel: #111821;
+  --color-line: #1f2a37;
+  --color-ink: #e5e7eb;
+  --color-ink-2: #9ca3af;
+  --color-ink-3: #6b7280;
+  --color-accent: #38bdf8;
+  --color-nominal: #22c55e;
+  --color-watch: #eab308;
+  --color-critical: #ef4444;
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+}
+
+html,
+body {
+  background: var(--color-bg);
+  color-scheme: dark;
+}
+
+/* Map asset pins */
+.pin {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  background: none;
+  border: 0;
+  padding: 0;
+}
+.pin-dot {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 9999px;
+  border: 2px solid #0b0f14;
+  color: #0b0f14;
+  font-size: 10px;
+  box-shadow: 0 0 0 2px rgb(255 255 255 / 0.6);
+}
+.pin-label {
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgb(11 15 20 / 0.8);
+  color: var(--color-ink);
+  font: 500 12px/1.3 var(--font-sans);
+  white-space: nowrap;
+}
+.pin-selected .pin-dot {
+  box-shadow: 0 0 0 3px var(--color-accent);
+}
+.pin-critical {
+  animation: pin-pulse 1s ease-in-out infinite;
+}
+@keyframes pin-pulse {
+  50% {
+    box-shadow: 0 0 0 8px rgb(239 68 68 / 0.35);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pin-critical {
+    animation: none;
+  }
+}
