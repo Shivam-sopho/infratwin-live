@@ -34,12 +34,15 @@ const STYLE: StyleSpecification = {
   sky: {},
 };
 
-function paintMarker(el: HTMLElement, status: Status, selected: boolean) {
+function paintMarker(el: HTMLElement, status: Status, selected: boolean, findings: number) {
   const dot = el.querySelector<HTMLElement>("[data-dot]")!;
   dot.style.background = STATUS_COLOR[status];
   dot.textContent = STATUS_ICON[status];
   dot.classList.toggle("pin-critical", status === "critical");
   el.classList.toggle("pin-selected", selected);
+  const count = el.querySelector<HTMLElement>("[data-count]")!;
+  count.hidden = findings === 0;
+  count.textContent = `${findings} defect${findings === 1 ? "" : "s"}`;
 }
 
 export function CorridorMap() {
@@ -51,6 +54,7 @@ export function CorridorMap() {
   const assetStatus = useTwin((s) => s.status.assets);
   const selectedAssetId = useTwin((s) => s.selectedAssetId);
   const selectAsset = useTwin((s) => s.selectAsset);
+  const findings = useTwin((s) => s.findings);
 
   useEffect(() => {
     if (!container.current || assets.length === 0) return;
@@ -71,7 +75,7 @@ export function CorridorMap() {
     for (const a of assets) {
       const el = document.createElement("button");
       el.className = "pin";
-      el.innerHTML = `<span data-dot class="pin-dot"></span><span class="pin-label">${a.name}</span>`;
+      el.innerHTML = `<span data-dot class="pin-dot"></span><span class="pin-label">${a.name}<span data-count class="pin-count" hidden></span></span>`;
       el.addEventListener("click", (e) => {
         e.stopPropagation();
         selectAsset(a.id);
@@ -88,10 +92,12 @@ export function CorridorMap() {
   }, [assets, selectAsset]);
 
   useEffect(() => {
+    const counts: Record<string, number> = {};
+    for (const f of findings) counts[f.asset_id] = (counts[f.asset_id] ?? 0) + 1;
     for (const [id, el] of Object.entries(markers.current)) {
-      paintMarker(el, assetStatus[id] ?? "nominal", id === selectedAssetId);
+      paintMarker(el, assetStatus[id] ?? "nominal", id === selectedAssetId, counts[id] ?? 0);
     }
-  }, [assetStatus, selectedAssetId]);
+  }, [assetStatus, selectedAssetId, findings]);
 
   useEffect(() => {
     const asset = assets.find((a) => a.id === selectedAssetId);

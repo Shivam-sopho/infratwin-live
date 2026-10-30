@@ -127,7 +127,7 @@ class Simulator:
             "status": self.status(),
         }
 
-    async def _broadcast(self, msg: dict) -> None:
+    async def broadcast(self, msg: dict) -> None:
         for ws in list(self.clients):
             try:
                 await ws.send_json(msg)
@@ -138,8 +138,8 @@ class Simulator:
         interval = 1.0 / settings.sim_tick_hz
         while True:
             tick, new_alerts = self.step()
-            await self._broadcast(tick)
+            await self.broadcast(tick)
             for alert in new_alerts:
                 # Hook point for Muse Glimmer / Spark anomaly triage.
-                await self._broadcast({"type": "alert", "alert": alert.model_dump()})
+                await self.broadcast({"type": "alert", "alert": alert.model_dump()})
             await asyncio.sleep(interval)

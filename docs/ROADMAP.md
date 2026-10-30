@@ -6,7 +6,7 @@ Build order: each step ships a working, demoable increment on top of the foundat
 |---|---------|-------------------|--------|
 | 0 | Foundation: GIS corridor map, placeholder BIM twin, live SHM telemetry + health roll-up, alerts | — | ✅ |
 | 1 | SAM 3.1 dual-vocabulary segmentation of inspection frames: structural elements + dacl10k defects, mask overlays, defect → host-element attribution | `sam-3.1` | ✅ |
-| 2 | Pin findings to twin components (geo-anchored defect markers) + SAM 3.1 video tracking | `sam-3.1` | ⬜ |
+| 2 | Pin findings to twin components (defect patches on twin, counts on map, findings log) + SAM 3.1 video tracking | `sam-3.1` | ✅ |
 | 3 | SAM 3D Objects defect lifting + SAM 3D Body worker geofence on Modal | SAM 3D (open weights) | ⬜ |
 | 4 | Union-Find Scan-to-BIM component clustering (replaces placeholder geometry) | — | ⬜ |
 | 5 | Hierarchical refinement: coarse structure + hi-res defect patch, compute-savings badge | — | ⬜ |
@@ -27,5 +27,8 @@ Build order: each step ships a working, demoable increment on top of the foundat
   Set `metadata.include_confidence: "true"`. Multi-concept prompts are unreliable → fan out one request per class.
   Parse with Meta's official `meta-sam-parser` (`parse_responses_stream` + `image_segmentation_format`); masks are
   box-local rasters. We request `one_bit` masks: the lossless decoder is a pure-Python range coder and slow on large masks.
+- **SAM 3.1 video**: clip uploaded via `POST /files` (purpose `user_data`), referenced as `input_video.file_id`.
+  We re-encode to 5 fps / ≤20 s / ≤960 px H.264 with PyAV first (bills per frame, min 50 frames per request),
+  baking in phone rotation metadata. Parse with `video_segmentation_format`; object ids are stable → tracks.
 - **Muse Image**: `POST /images/generations` and `/images/edits` (`images: [{image_url}]`), $0.01/image.
 - **Voice**: `POST /asr/transcribe` multipart (`request` JSON + `audio` WAV, ≤10 min). Browser audio must be converted to WAV.
