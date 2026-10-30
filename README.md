@@ -16,6 +16,9 @@ and Muse models for metrology, drone re-planning, voice logging and deterioratio
   Health rolls up sensor → component → asset, with threshold hysteresis
 - **Alerts feed**: watch and critical escalations. Click one to jump to the component
 - **Demo trigger**: "Simulate Pier 4 event" ramps Pier 4 of viaduct B-07 into a critical state
+- **SAM 3.1 inspection** (Inspection tab): one frame is segmented against two vocabularies, structural elements
+  (pier, girder, deck…) and dacl10k surface defects (crack, spalling, exposed rebar…), fanned out concurrently.
+  Each defect is attributed to the element its mask overlaps most, e.g. "concrete crack #0 on concrete pier #1 · 87%"
 
 ## Quick start
 
@@ -36,9 +39,10 @@ backend/            FastAPI (Python 3.12, uv)
   app/main.py         REST + /ws/telemetry
   app/corridor.py     seed assets, components, sensors (placeholder BIM)
   app/simulator.py    telemetry sim, health roll-up, alerts, WS fan-out
-  app/meta_client.py  Meta Model API client (Responses API)
+  app/meta_client.py  Meta Model API client (Responses API, SSE streaming)
+  app/sam31.py        SAM 3.1 dual-vocabulary segmentation + defect→element attribution
 frontend/           Vite + React 19 + TypeScript + Tailwind v4
-  src/components/     CorridorMap, TwinViewer, Inspector, AlertsFeed, Sparkline
+  src/components/     CorridorMap, TwinViewer, InspectionPanel, Inspector, AlertsFeed, Sparkline
 modal_workers/      SAM 3D Objects / Body GPU services (coming)
 docs/ROADMAP.md     feature plan + Meta API integration notes
 ```

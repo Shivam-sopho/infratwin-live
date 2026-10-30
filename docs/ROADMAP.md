@@ -5,8 +5,8 @@ Build order: each step ships a working, demoable increment on top of the foundat
 | # | Feature | Meta model / tool | Status |
 |---|---------|-------------------|--------|
 | 0 | Foundation: GIS corridor map, placeholder BIM twin, live SHM telemetry + health roll-up, alerts | — | ✅ |
-| 1 | SAM 3.1 dual-vocabulary segmentation (structural elements + dacl10k defects) on inspection frames/video | `sam-3.1` | ⬜ |
-| 2 | Inspection viewer: mask overlays, defect pinned to twin component | `sam-3.1` | ⬜ |
+| 1 | SAM 3.1 dual-vocabulary segmentation of inspection frames: structural elements + dacl10k defects, mask overlays, defect → host-element attribution | `sam-3.1` | ✅ |
+| 2 | Pin findings to twin components (geo-anchored defect markers) + SAM 3.1 video tracking | `sam-3.1` | ⬜ |
 | 3 | SAM 3D Objects defect lifting + SAM 3D Body worker geofence on Modal | SAM 3D (open weights) | ⬜ |
 | 4 | Union-Find Scan-to-BIM component clustering (replaces placeholder geometry) | — | ⬜ |
 | 5 | Hierarchical refinement: coarse structure + hi-res defect patch, compute-savings badge | — | ⬜ |
@@ -25,5 +25,7 @@ Build order: each step ships a working, demoable increment on top of the foundat
   Output is a token stream, one line per frame:
   `<Nf>id<|box;x1;y1;x2;y2;w;h[;c]|><|mask;...;data=H,W,<enc>base85|>,...` — `~` lossless, `!` one_bit.
   Set `metadata.include_confidence: "true"`. Multi-concept prompts are unreliable → fan out one request per class.
+  Parse with Meta's official `meta-sam-parser` (`parse_responses_stream` + `image_segmentation_format`); masks are
+  box-local rasters. We request `one_bit` masks: the lossless decoder is a pure-Python range coder and slow on large masks.
 - **Muse Image**: `POST /images/generations` and `/images/edits` (`images: [{image_url}]`), $0.01/image.
 - **Voice**: `POST /asr/transcribe` multipart (`request` JSON + `audio` WAV, ≤10 min). Browser audio must be converted to WAV.

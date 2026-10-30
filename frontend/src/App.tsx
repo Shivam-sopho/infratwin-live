@@ -4,7 +4,7 @@ import { AlertsFeed } from "./components/AlertsFeed";
 import { CorridorMap } from "./components/CorridorMap";
 import { Inspector } from "./components/Inspector";
 import { TopBar } from "./components/TopBar";
-import { TwinViewer } from "./components/TwinViewer";
+import { CenterPane } from "./components/CenterPane";
 import { useTwin } from "./store";
 import { useTelemetry } from "./useTelemetry";
 
@@ -22,7 +22,7 @@ export default function App() {
           <CorridorMap />
         </div>
         <div className="h-[50vh] border-b border-line lg:h-auto lg:border-r lg:border-b-0">
-          <TwinViewer />
+          <CenterPane />
         </div>
         <aside className="grid min-h-0 grid-rows-[minmax(0,1.6fr)_minmax(0,1fr)] bg-panel">
           <div className="min-h-0 overflow-y-auto border-b border-line">

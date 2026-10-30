@@ -4,6 +4,9 @@ Feature modules (SAM 3.1 segmentation, Muse Image, Voice Transcribe, Wonder plan
 build on this rather than talking HTTP directly.
 """
 
+import json
+from collections.abc import AsyncIterator
+
 import httpx
 
 from .config import settings
@@ -36,6 +39,21 @@ class MetaClient:
         if r.status_code >= 400:
             raise MetaAPIError(f"{r.status_code}: {r.text[:500]}")
         return r.json()
+
+    async def stream(self, path: str, body: dict) -> AsyncIterator[dict]:
+        """POST with `stream: true` and yield each server-sent event's JSON payload."""
+        if not self.configured:
+            raise MetaAPIError("MODEL_API_KEY is not set")
+        async with self._http.stream(
+            "POST", path, json={**body, "stream": True}, headers={"Accept": "text/event-stream"}
+        ) as r:
+            if r.status_code >= 400:
+                raise MetaAPIError(f"{r.status_code}: {(await r.aread()).decode(errors='replace')[:500]}")
+            async for line in r.aiter_lines():
+                if line.startswith("data:"):
+                    data = line[5:].strip()
+                    if data and data != "[DONE]":
+                        yield json.loads(data)
 
     @staticmethod
     def output_text(response: dict) -> str:

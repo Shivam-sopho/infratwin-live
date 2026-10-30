@@ -59,3 +59,39 @@ export type ServerMessage =
   | { type: "snapshot"; history: { t: number; readings: Record<string, number> }[]; alerts: Alert[]; status: StatusSnapshot }
   | { type: "tick"; t: number; readings: Record<string, number>; status: StatusSnapshot }
   | { type: "alert"; alert: Alert };
+
+export type ConceptCategory = "structural" | "defect";
+
+export interface Concept {
+  text: string;
+  category: ConceptCategory;
+}
+
+export interface Detection {
+  id: string;
+  concept: string;
+  category: ConceptCategory;
+  box: [number, number, number, number];
+  confidence: number | null;
+  area_px: number;
+  mask: { bounds: [number, number, number, number]; png: string } | null;
+  host_id: string | null;
+  host_overlap: number | null;
+}
+
+export interface ConceptRun {
+  text: string;
+  category: ConceptCategory;
+  count: number;
+  ms: number;
+  error: string | null;
+}
+
+export interface SegmentationReport {
+  model: string;
+  width: number;
+  height: number;
+  concepts: ConceptRun[];
+  detections: Detection[];
+  est_cost_usd: number;
+}
