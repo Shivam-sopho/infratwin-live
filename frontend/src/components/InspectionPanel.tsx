@@ -28,6 +28,7 @@ interface DefectRow {
   frames: number | null;
   bestFrame: number | null;
   metrology: Metrology | null;
+  maskPng: string | null;
 }
 
 function defectRows(run: Run): DefectRow[] {
@@ -45,6 +46,7 @@ function defectRows(run: Run): DefectRow[] {
         frames: null,
         bestFrame: null,
         metrology: d.metrology ?? null,
+        maskPng: d.mask?.png ?? null,
       }));
   }
   return run.report.tracks
@@ -62,6 +64,7 @@ function defectRows(run: Run): DefectRow[] {
         frames: t.frames.length,
         bestFrame: t.best_frame,
         metrology: t.metrology,
+        maskPng: best.mask?.png ?? null,
       };
     });
 }
@@ -213,6 +216,7 @@ export function InspectionPanel() {
           host_label: r.hostId ? (labelOf[r.hostId] ?? null) : null,
           frames_tracked: r.frames,
           metrology: r.metrology,
+          mask_png: r.maskPng,
           thumbnail,
         });
       }

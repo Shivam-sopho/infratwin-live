@@ -26,6 +26,7 @@ class FindingIn(BaseModel):
     host_label: str | None = Field(default=None, max_length=100)
     frames_tracked: int | None = None
     metrology: Metrology | None = None
+    mask_png: str | None = None  # box-local defect mask (white RGBA, alpha = mask) for independent re-measurement
     thumbnail: str
 
     @field_validator("thumbnail")
@@ -33,6 +34,13 @@ class FindingIn(BaseModel):
     def _thumb(cls, v: str) -> str:
         if not v.startswith("data:image/") or len(v) > MAX_THUMBNAIL_CHARS:
             raise ValueError("thumbnail must be an image data URL under 300 kB")
+        return v
+
+    @field_validator("mask_png")
+    @classmethod
+    def _mask(cls, v: str | None) -> str | None:
+        if v is not None and (not v.startswith("data:image/png;base64,") or len(v) > MAX_THUMBNAIL_CHARS):
+            raise ValueError("mask_png must be a PNG data URL under 300 kB")
         return v
 
     @model_validator(mode="after")

@@ -16,12 +16,13 @@ function Pill({ ok, label }: { ok: boolean; label: string }) {
 
 export function TopBar() {
   const connected = useTwin((s) => s.connected);
-  const [health, setHealth] = useState({ meta: false, glimmer: false, sparkOpen: false });
+  const [health, setHealth] = useState({ meta: false, glimmer: false, sparkOpen: false, modal: false });
 
   useEffect(() => {
     api.health().then(
-      (h) => setHealth({ meta: h.meta_api_configured, glimmer: h.glimmer_configured, sparkOpen: h.spark_open_configured }),
-      () => setHealth({ meta: false, glimmer: false, sparkOpen: false }),
+      (h) =>
+        setHealth({ meta: h.meta_api_configured, glimmer: h.glimmer_configured, sparkOpen: h.spark_open_configured, modal: h.modal_configured }),
+      () => setHealth({ meta: false, glimmer: false, sparkOpen: false, modal: false }),
     );
   }, [connected]);
   const metaReady = health.meta;
@@ -36,7 +37,10 @@ export function TopBar() {
         <Pill ok={connected} label={connected ? "Telemetry live" : "Telemetry offline"} />
         <Pill ok={metaReady} label={metaReady ? "Meta API key set" : "Meta API key missing"} />
         <span className="hidden xl:inline-flex">
-          <Pill ok={health.glimmer && health.sparkOpen} label={`Open weights: Glimmer ${health.glimmer ? "✓" : "–"} · Spark Open ${health.sparkOpen ? "✓" : "–"}`} />
+          <Pill
+            ok={health.glimmer && health.sparkOpen && health.modal}
+            label={`Glimmer ${health.glimmer ? "✓" : "–"} · Spark Open ${health.sparkOpen ? "✓" : "–"} · Modal ${health.modal ? "✓" : "–"}`}
+          />
         </span>
         <VoiceButton />
         <button

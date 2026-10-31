@@ -23,9 +23,11 @@ from .models import Asset
 from .sam31 import DEFAULT_CONCEPTS, Concept, SegmentationReport, prepare_image, segment_image
 from .sam31_video import VideoReport, segment_video, transcode
 from .openweight import glimmer, spark_open
+from .sandbox import modal_configured, run_python
 from .screening import Screener
 from .simulator import Simulator
 from .triage import CognitiveTwin, find_alert
+from .verify import Verification, verify
 from .voice import ActionResult, NoteStore, VoiceResult, check_wav, interpret, transcribe, vocabulary
 
 ASSETS = build_corridor()
@@ -85,6 +87,7 @@ def health():
         "meta_api_configured": meta.configured,
         "glimmer_configured": glimmer.configured,
         "spark_open_configured": spark_open.configured,
+        "modal_configured": modal_configured(),
         "ws_clients": len(sim.clients),
     }
 
@@ -251,6 +254,29 @@ async def create_forecast(finding_id: str, req: ForecastRequest):
         return await render_forecast(forecasts, f, req.scenario, context)
     except (MetaAPIError, ValidationError) as e:
         raise HTTPException(502, f"Forecast failed: {e}")
+
+
+verifications: dict[str, Verification] = {}
+
+
+@app.post("/api/findings/{finding_id}/verify", response_model=Verification)
+async def verify_finding(finding_id: str):
+    """Muse Spark Open re-measures the defect with its own code, executed in a Modal Sandbox."""
+    f = _finding(finding_id)
+    if not (f.metrology and f.metrology.scale_mm_per_px and f.mask_png):
+        raise HTTPException(400, "Finding has no scaled measurement and mask to verify (pin it with 'Captured at' set)")
+    if not spark_open.configured:
+        raise HTTPException(503, "Muse Spark Open is not configured (SPARK_OPEN_BASE_URL / SPARK_OPEN_MODEL)")
+    if not modal_configured():
+        raise HTTPException(503, "Modal is not configured: model-written code only runs in an isolated Modal Sandbox")
+    v = await verify(f, run_python)
+    verifications[f.id] = v
+    return v
+
+
+@app.get("/api/findings/{finding_id}/verify", response_model=Verification | None)
+def get_verification(finding_id: str):
+    return verifications.get(_finding(finding_id).id)
 
 
 @app.get("/api/findings/{finding_id}/forecasts/{scenario}.jpg")

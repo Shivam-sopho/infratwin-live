@@ -10,7 +10,7 @@ Build order: each step ships a working, demoable increment on top of the foundat
 | 3 | SAM 3D Objects defect lifting + SAM 3D Body worker geofence on Modal | SAM 3D (open weights) | ⬜ |
 | 4 | Union-Find Scan-to-BIM component clustering (replaces placeholder geometry) | — | ⬜ |
 | 5 | Hierarchical refinement: coarse structure + hi-res defect patch, compute-savings badge | — | ⬜ |
-| 6 | Defect metrology: host-element scale (area, perimeter, crack length/width) ✅; normal-gradient plane raycasting (true area + inclination) implemented & tested, awaits SAM 3D depth; Muse Spark Open + Modal Sandbox execution ⬜ | Muse Spark Open | 🟡 |
+| 6 | Defect metrology: host-element scale (area, perimeter, crack length/width) ✅; normal-gradient plane raycasting (true area + inclination) implemented & tested, awaits SAM 3D depth; Muse Spark Open independent re-measurement with its own code in a network-isolated Modal Sandbox ✅ (needs Spark Open host + Modal) | Muse Spark Open | ✅ |
 | 7 | Cognitive Twin: Muse Spark triage of critical alerts with streamed reasoning + structured assessment + Muse Glimmer first-pass screening of every alert (OpenAI-compatible endpoint) | `muse-spark-1.3` / Glimmer | ✅ Spark · ✅ Glimmer code (needs hosting) |
 | 8 | Occlusion-adaptive UAV re-planner: Algorithm 2 view scoring + collision-checked paths as tools for Muse Wonder; 3D flight on twin + map | `muse-wonder-1.0` | ✅ |
 | 9 | Voice field commands: push-to-talk → Voice Transcribe (twin vocabulary as keywords) → Muse Spark intents → notes, measurements, triage, drone re-scan, navigation | `muse-voice-transcribe-1.0` + `muse-spark-1.3` | ✅ |

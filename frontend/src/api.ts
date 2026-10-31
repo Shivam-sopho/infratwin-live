@@ -1,4 +1,4 @@
-import type { Asset, Concept, Finding, FindingIn, Forecast, Scenario, SegmentationReport, VideoReport, VoiceResult } from "./types";
+import type { Asset, Concept, Finding, FindingIn, Forecast, Scenario, SegmentationReport, Verification, VideoReport, VoiceResult } from "./types";
 
 async function json<T>(res: Response): Promise<T> {
   if (!res.ok) {
@@ -17,7 +17,9 @@ async function json<T>(res: Response): Promise<T> {
 export const api = {
   assets: () => fetch("/api/assets").then(json<Asset[]>),
   health: () =>
-    fetch("/api/health").then(json<{ ok: boolean; meta_api_configured: boolean; glimmer_configured: boolean; spark_open_configured: boolean }>),
+    fetch("/api/health").then(
+      json<{ ok: boolean; meta_api_configured: boolean; glimmer_configured: boolean; spark_open_configured: boolean; modal_configured: boolean }>,
+    ),
   injectAnomaly: (component_id: string) =>
     fetch("/api/sim/anomaly", {
       method: "POST",
@@ -71,5 +73,6 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ scenario }),
     }).then(json<Forecast>),
+  verify: (findingId: string) => fetch(`/api/findings/${findingId}/verify`, { method: "POST" }).then(json<Verification>),
   deleteFinding: (id: string) => fetch(`/api/findings/${id}`, { method: "DELETE" }).then(json),
 };

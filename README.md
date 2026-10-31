@@ -29,6 +29,10 @@ and Muse models for metrology, drone re-planning, voice logging and deterioratio
   plus distance transform), with stated assumptions and plausibility warnings. The normal-gradient plane raycasting
   method (depth gradients → surface normal → ray/plane intersection, giving true area and inclination) is implemented
   and validated on synthetic tilted planes, ready for SAM 3D depth
+- **Independent measurement check (Muse Spark Open + Modal Sandbox)**: for any measured finding, Spark Open gets
+  the defect mask and scale, writes its own measurement code, runs it in a network-isolated Modal Sandbox
+  (model-written code never runs locally), and compares its numbers with the twin's, with its commentary and code
+  shown
 - **UAV re-scan planner (Muse Wonder + Algorithm 2)**: obstacles such as drainage pipes and scaffolding are part of
   the twin. The geometry engine samples the defect region, scores camera poses by line-of-sight coverage and viewing
   angle, and plans collision-checked flights. Muse Wonder calls these as tools, compares standoffs, and returns a
@@ -81,6 +85,8 @@ backend/            FastAPI (Python 3.12, uv)
   app/forecast.py     reason-before-render time-travel previews (Muse Spark + Muse Image)
   app/openweight.py   OpenAI-compatible clients for Muse Glimmer / Muse Spark Open
   app/screening.py    Glimmer first-pass alert screening
+  app/verify.py       Spark Open independent re-measurement via tool calls
+  app/sandbox.py      Modal Sandbox runner (network-blocked, time/CPU/memory bounded)
 frontend/           Vite + React 19 + TypeScript + Tailwind v4
   src/components/     CorridorMap, TwinViewer, InspectionPanel, Inspector, AlertsFeed, Sparkline
 modal_workers/      SAM 3D Objects / Body GPU services (coming)

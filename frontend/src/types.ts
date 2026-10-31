@@ -93,6 +93,7 @@ export interface Finding {
   host_label: string | null;
   frames_tracked: number | null;
   metrology: Metrology | null;
+  mask_png?: string | null;
   thumbnail: string;
 }
 
@@ -303,4 +304,18 @@ export interface Screen {
   escalate: boolean;
   reason: string;
   ms: number;
+}
+
+export interface Verification {
+  finding_id: string;
+  t: number;
+  model: string;
+  status: "done" | "error";
+  commentary: string[];
+  runs: { code: string; result: { stdout: string; stderr: string; exit_code: number | null; ms: number } }[];
+  independent: Record<string, number | null> | null;
+  ours: Record<string, number | null>;
+  agreement: string | null;
+  summary: string | null;
+  error: string | null;
 }

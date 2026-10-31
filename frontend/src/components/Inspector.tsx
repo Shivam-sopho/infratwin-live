@@ -4,6 +4,7 @@ import type { Finding, Sensor } from "../types";
 import { Sparkline } from "./Sparkline";
 import { metrologySummary, metrologyTooltip } from "./inspection/metrology";
 import { StatusBadge } from "./StatusBadge";
+import { VerifyAction } from "./VerifyResult";
 
 function SensorRow({ sensor }: { sensor: Sensor }) {
   const values = useTwin((s) => s.history[sensor.id]) ?? [];
@@ -83,6 +84,7 @@ function FindingCard({ f }: { f: Finding }) {
             {metrologySummary(f.metrology)}
           </div>
         )}
+        <VerifyAction f={f} />
         <div className="truncate text-ink-3">
           {f.source === "video" ? `video, ${f.frames_tracked} frames` : "photo"} · {f.source_name} · {fmtTime(f.t)}
         </div>
