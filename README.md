@@ -284,4 +284,3 @@ Datasets are downloaded locally by `scripts/fetch_data.sh` into `demo-media/` an
 - **KW51 geometry** is illustrative; KU Leuven's published finite-element model ([Zenodo 17366772](https://zenodo.org/records/17366772)) could replace it.
 - **Drone planner** follows ASIP-Planner's idea (online view-angle adaptation around occlusions); aligning it
   step-by-step with the paper's published algorithm is planned.
-- **CI workflow** (tests, UI build, container build) is ready locally; pushing it needs the GitHub `workflow` scope.

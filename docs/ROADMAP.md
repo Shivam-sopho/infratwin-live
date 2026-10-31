@@ -17,7 +17,7 @@ Build order: each step ships a working, demoable increment on top of the foundat
 | 10 | Time-travel previews: Muse Spark reasons (narrative + edit prompt) → Muse Image edits the defect photo for +6 months / +2 years / repaired; cached, labelled illustrative | `muse-spark-1.3` + `muse-image-1.0` | ✅ |
 | 11 | Demo walkthrough (6 narrated steps), demo reset, README | — | ✅ |
 | 12 | Real data: KW51 bridge replay with temperature-compensated modal monitoring; dacl10k sample library with ground-truth scoring; sensor ingest API | — | ✅ |
-| 13 | Production: access token, daily spend guard, single-container build, CI (pending GitHub workflow scope) | — | ✅ |
+| 13 | Production: access token, daily spend guard, single-container build | — | ✅ |
 
 ## Integration notes (from dev.meta.ai/docs)
 
