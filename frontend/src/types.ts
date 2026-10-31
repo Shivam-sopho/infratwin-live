@@ -55,6 +55,21 @@ export interface StatusSnapshot {
   assets: Record<string, Status>;
 }
 
+export interface Metrology {
+  method: "host-scale-2d" | "normal-gradient-raycast";
+  scale_mm_per_px: number | null;
+  scale_note: string;
+  area_m2: number;
+  perimeter_m: number;
+  length_m: number | null;
+  max_width_mm: number | null;
+  mean_width_mm: number | null;
+  inclination_deg: number | null;
+  resolution_mm: number | null;
+  assumptions: string[];
+  warnings: string[];
+}
+
 export interface Finding {
   id: string;
   t: number;
@@ -68,6 +83,7 @@ export interface Finding {
   bbox_uv: [number, number, number, number];
   host_label: string | null;
   frames_tracked: number | null;
+  metrology: Metrology | null;
   thumbnail: string;
 }
 
@@ -105,6 +121,7 @@ export interface Detection {
   mask: { bounds: [number, number, number, number]; png: string } | null;
   host_id: string | null;
   host_overlap: number | null;
+  metrology?: Metrology | null;
 }
 
 export interface ConceptRun {
@@ -141,6 +158,7 @@ export interface Track {
   confidence: number | null;
   host_id: string | null;
   host_overlap: number | null;
+  metrology: Metrology | null;
 }
 
 export interface VideoReport {

@@ -10,7 +10,7 @@ Build order: each step ships a working, demoable increment on top of the foundat
 | 3 | SAM 3D Objects defect lifting + SAM 3D Body worker geofence on Modal | SAM 3D (open weights) | ⬜ |
 | 4 | Union-Find Scan-to-BIM component clustering (replaces placeholder geometry) | — | ⬜ |
 | 5 | Hierarchical refinement: coarse structure + hi-res defect patch, compute-savings badge | — | ⬜ |
-| 6 | Normal-gradient raycasting metrology (area, perimeter, crack width, inclination) | Muse Spark Open | ⬜ |
+| 6 | Defect metrology: host-element scale (area, perimeter, crack length/width) ✅; normal-gradient plane raycasting (true area + inclination) implemented & tested, awaits SAM 3D depth; Muse Spark Open + Modal Sandbox execution ⬜ | Muse Spark Open | 🟡 |
 | 7 | Cognitive Twin: Muse Spark triage of critical alerts with streamed reasoning + structured assessment (Glimmer first-pass pending hosting) | `muse-spark-1.3` / Glimmer | ✅ Spark · ⬜ Glimmer |
 | 8 | Occlusion-adaptive UAV re-planner (Algorithm 2), 3D flight path on twin + map | `muse-wonder-1.0` | ⬜ |
 | 9 | Voice field commands → tool calls / geo-pinned notes | `muse-voice-transcribe-1.0` | ⬜ |

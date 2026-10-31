@@ -25,16 +25,18 @@ export const api = {
     }).then(json),
   resetSim: () => fetch("/api/sim/reset", { method: "POST" }).then(json),
   vocabulary: () => fetch("/api/inspect/vocabulary").then(json<Concept[]>),
-  segment: (file: File, concepts: Concept[]) => {
+  segment: (file: File, concepts: Concept[], componentId?: string) => {
     const body = new FormData();
     body.append("file", file);
     body.append("concepts", JSON.stringify(concepts));
+    if (componentId) body.append("component_id", componentId);
     return fetch("/api/inspect/segment", { method: "POST", body }).then(json<SegmentationReport>);
   },
-  segmentVideo: (file: File, concepts: Concept[]) => {
+  segmentVideo: (file: File, concepts: Concept[], componentId?: string) => {
     const body = new FormData();
     body.append("file", file);
     body.append("concepts", JSON.stringify(concepts));
+    if (componentId) body.append("component_id", componentId);
     return fetch("/api/inspect/segment-video", { method: "POST", body }).then(json<VideoReport>);
   },
   addFindings: (items: FindingIn[]) =>

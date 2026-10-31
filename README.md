@@ -24,6 +24,11 @@ and Muse models for metrology, drone re-planning, voice logging and deterioratio
 - **Findings pinned to the twin**: confirmed defects are pinned to the component the frame was captured at. They show
   as patches on the 3D twin (selecting one zooms the camera there), as counts on the map pins, and as a thumbnail log
   in the inspector. Patch placement is approximate (taken from the 2D frame position) until SAM 3D lifting
+- **Defect metrology**: choosing where a frame was captured (e.g. Pier 4, 2.4 m wide) gives a metric scale from that
+  element's SAM 3.1 mask. Each defect then gets area, perimeter, and, for cracks, length and max/mean width (skeleton
+  plus distance transform), with stated assumptions and plausibility warnings. The normal-gradient plane raycasting
+  method (depth gradients → surface normal → ray/plane intersection, giving true area and inclination) is implemented
+  and validated on synthetic tilted planes, ready for SAM 3D depth
 - **Cognitive Twin (Muse Spark)**: when a sensor goes critical, the twin hands Muse Spark the component's live traces,
   thresholds, neighbouring sensor states, recent alerts and pinned findings. Its reasoning streams into the panel,
   followed by a structured assessment: severity, causes, evidence, actions, and whether a visual audit is needed
@@ -53,6 +58,7 @@ backend/            FastAPI (Python 3.12, uv)
   app/sam31_video.py  clip transcoding (PyAV) + SAM 3.1 video tracking → per-defect tracks
   app/findings.py     findings pinned to components (persisted to backend/data/findings.json)
   app/triage.py       Cognitive Twin: alert context assembly + streamed Muse Spark triage
+  app/metrology.py    host-scale defect measurement + normal-gradient plane raycasting
 frontend/           Vite + React 19 + TypeScript + Tailwind v4
   src/components/     CorridorMap, TwinViewer, InspectionPanel, Inspector, AlertsFeed, Sparkline
 modal_workers/      SAM 3D Objects / Body GPU services (coming)

@@ -16,7 +16,8 @@ from meta_sam_parser import parse_responses_stream, video_segmentation_format
 from pydantic import BaseModel
 
 from .meta_client import SAM_31, meta
-from .sam31 import CONCURRENCY, Category, Concept, ConceptRun, MaskOut, _Raw, assign_hosts, records_to_detections
+from .metrology import Metrology, ScaleRef
+from .sam31 import CONCURRENCY, Category, Concept, ConceptRun, MaskOut, _Raw, assign_hosts, measure, records_to_detections
 
 TARGET_FPS = 5
 MAX_FRAMES = 100  # 20 s at 5 fps
@@ -49,6 +50,7 @@ class Track(BaseModel):
     confidence: float | None
     host_id: str | None = None
     host_overlap: float | None = None
+    metrology: Metrology | None = None  # measured on the best (largest) view
 
 
 class VideoReport(BaseModel):
@@ -108,7 +110,7 @@ def records_to_frame_raws(concept: Concept, records) -> dict[int, list[_Raw]]:
     return {f: records_to_detections(concept, recs) for f, recs in by_frame.items()}
 
 
-def build_tracks(raws_by_frame: dict[int, list[_Raw]]) -> list[Track]:
+def build_tracks(raws_by_frame: dict[int, list[_Raw]], scale_ref: ScaleRef | None = None) -> list[Track]:
     """Attribute defects to hosts frame by frame, then fold detections into per-object tracks."""
     frames_by_id: dict[str, list[tuple[int, _Raw]]] = defaultdict(list)
     for f in sorted(raws_by_frame):
@@ -123,6 +125,11 @@ def build_tracks(raws_by_frame: dict[int, list[_Raw]]) -> list[Track]:
         host_id = hosts.most_common(1)[0][0] if hosts else None
         overlaps = [r.det.host_overlap for _, r in items if r.det.host_id == host_id and r.det.host_overlap]
         confs = [r.det.confidence for _, r in items if r.det.confidence is not None]
+        best_f, best = max(items, key=lambda it: it[1].det.area_px)
+        metrology = None
+        if first.category == "defect":
+            frame = {r.det.id: r for r in raws_by_frame[best_f]}
+            metrology = measure(best, frame.get(best.det.host_id or host_id or ""), scale_ref)
         tracks.append(
             Track(
                 id=tid,
@@ -132,10 +139,11 @@ def build_tracks(raws_by_frame: dict[int, list[_Raw]]) -> list[Track]:
                     TrackFrame(f=f, box=r.det.box, confidence=r.det.confidence, area_px=r.det.area_px, mask=r.det.mask)
                     for f, r in items
                 ],
-                best_frame=max(items, key=lambda it: it[1].det.area_px)[0],
+                best_frame=best_f,
                 confidence=max(confs) if confs else None,
                 host_id=host_id,
                 host_overlap=round(float(np.mean(overlaps)), 3) if overlaps else None,
+                metrology=metrology,
             )
         )
     return tracks
@@ -174,7 +182,9 @@ async def _run_concept(concept: Concept, file_id: str, sem: asyncio.Semaphore) -
     return ConceptRun(text=concept.text, category=concept.category, count=n_objects, ms=ms, error=error), by_frame
 
 
-async def segment_video(path: str, video: VideoMeta, concepts: list[Concept]) -> VideoReport:
+async def segment_video(
+    path: str, video: VideoMeta, concepts: list[Concept], scale_ref: ScaleRef | None = None
+) -> VideoReport:
     file_id = await meta.upload_file(path, "clip.mp4", "video/mp4")
     try:
         sem = asyncio.Semaphore(CONCURRENCY)
@@ -189,7 +199,7 @@ async def segment_video(path: str, video: VideoMeta, concepts: list[Concept]) ->
     for _, by_frame in runs:
         for f, raws in by_frame.items():
             merged[f].extend(raws)
-    tracks = await asyncio.to_thread(build_tracks, merged)
+    tracks = await asyncio.to_thread(build_tracks, merged, scale_ref)
     return VideoReport(
         model=SAM_31,
         width=video.width,

@@ -27,6 +27,7 @@ from PIL import Image, ImageOps
 from pydantic import BaseModel
 
 from .meta_client import SAM_31, meta
+from .metrology import Metrology, ScaleRef, host_scale_metrology
 
 Category = Literal["structural", "defect"]
 
@@ -73,6 +74,7 @@ class Detection(BaseModel):
     mask: MaskOut | None
     host_id: str | None = None
     host_overlap: float | None = None
+    metrology: Metrology | None = None
 
 
 class ConceptRun(BaseModel):
@@ -184,6 +186,21 @@ def assign_hosts(raws: list[_Raw]) -> None:
             d.det.host_overlap = round(best_frac, 3)
 
 
+def measure(defect: _Raw, host: _Raw | None, ref: ScaleRef | None) -> Metrology | None:
+    """Metric size of a defect, scaled by its host element's known dimension."""
+    if ref is None or host is None or defect.raster is None or host.raster is None:
+        return None
+    return host_scale_metrology(defect.raster, defect.det.concept, host.raster, ref)
+
+
+def assign_and_measure(raws: list[_Raw], ref: ScaleRef | None) -> None:
+    assign_hosts(raws)
+    by_id = {r.det.id: r for r in raws}
+    for d in raws:
+        if d.det.category == "defect" and d.det.host_id:
+            d.det.metrology = measure(d, by_id.get(d.det.host_id), ref)
+
+
 def _request_body(concept: Concept, image_url: str) -> dict:
     return {
         "model": SAM_31,
@@ -216,11 +233,13 @@ async def _run_concept(concept: Concept, image_url: str, sem: asyncio.Semaphore)
     return ConceptRun(text=concept.text, category=concept.category, count=len(raws), ms=ms, error=error), raws
 
 
-async def segment_image(image_url: str, width: int, height: int, concepts: list[Concept]) -> SegmentationReport:
+async def segment_image(
+    image_url: str, width: int, height: int, concepts: list[Concept], scale_ref: ScaleRef | None = None
+) -> SegmentationReport:
     sem = asyncio.Semaphore(CONCURRENCY)
     runs = await asyncio.gather(*(_run_concept(c, image_url, sem) for c in concepts))
     raws = [r for _, rs in runs for r in rs]
-    await asyncio.to_thread(assign_hosts, raws)
+    await asyncio.to_thread(assign_and_measure, raws, scale_ref)
     return SegmentationReport(
         model=SAM_31,
         width=width,

@@ -8,6 +8,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
+from .metrology import Metrology
+
 MAX_THUMBNAIL_CHARS = 300_000
 
 
@@ -23,6 +25,7 @@ class FindingIn(BaseModel):
     bbox_uv: tuple[float, float, float, float]
     host_label: str | None = Field(default=None, max_length=100)
     frames_tracked: int | None = None
+    metrology: Metrology | None = None
     thumbnail: str
 
     @field_validator("thumbnail")

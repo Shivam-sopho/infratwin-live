@@ -80,3 +80,25 @@ def test_assign_hosts_uses_mask_overlap():
     assign_hosts([pier, girder, crack, stray])
     assert crack.det.host_id == "pier-0" and crack.det.host_overlap == 1.0
     assert stray.det.host_id is None
+
+
+def test_segment_image_measures_defects_with_scale_ref(monkeypatch):
+    from app.metrology import ScaleRef
+
+    async def fake_stream(path, body):
+        text = SAMPLE_LINE if body["input"][0]["content"][0]["text"] in ("concrete crack", "concrete pier") else ""
+        for e in _sse_events(text):
+            yield e
+
+    monkeypatch.setattr(sam31.meta, "stream", fake_stream)
+    concepts = [Concept(text="concrete pier", category="structural"), Concept(text="concrete crack", category="defect")]
+    ref = ScaleRef(component_id="B07.P4", component_name="Pier 4", axis="width", length_m=2.4)
+
+    with_ref = asyncio.run(sam31.segment_image("data:,", 320, 334, concepts, ref))
+    crack = next(d for d in with_ref.detections if d.id == "concrete-crack-0")
+    assert crack.metrology is not None and crack.metrology.method == "host-scale-2d"
+    assert crack.metrology.length_m and crack.metrology.max_width_mm
+    assert all(d.metrology is None for d in with_ref.detections if d.category == "structural")
+
+    without = asyncio.run(sam31.segment_image("data:,", 320, 334, concepts))
+    assert all(d.metrology is None for d in without.detections)

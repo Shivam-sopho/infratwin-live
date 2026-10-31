@@ -14,6 +14,7 @@ from pydantic import BaseModel, TypeAdapter, ValidationError
 from .config import settings
 from .corridor import build_corridor
 from .findings import Finding, FindingIn, FindingStore
+from .metrology import ScaleRef, scale_ref_for
 from .meta_client import MUSE_SPARK, MetaAPIError, meta
 from .models import Asset
 from .sam31 import DEFAULT_CONCEPTS, Concept, SegmentationReport, prepare_image, segment_image
@@ -91,6 +92,14 @@ MAX_CONCEPTS = 16
 MAX_VIDEO_BYTES = 300 * 1024 * 1024
 
 
+def _scale_ref(component_id: str | None) -> ScaleRef | None:
+    if not component_id:
+        return None
+    if component_id not in sim.components:
+        raise HTTPException(404, f"Unknown component {component_id}")
+    return scale_ref_for(sim.components[component_id])
+
+
 def _parse_concepts(concepts: str | None) -> list[Concept]:
     if not meta.configured:
         raise HTTPException(503, "MODEL_API_KEY is not set")
@@ -111,12 +120,14 @@ def inspect_vocabulary():
 
 
 @app.post("/api/inspect/segment", response_model=SegmentationReport)
-async def inspect_segment(file: UploadFile, concepts: str | None = Form(None)):
+async def inspect_segment(file: UploadFile, concepts: str | None = Form(None), component_id: str | None = Form(None)):
     """Segment one inspection frame with SAM 3.1 against structural + defect vocabularies.
 
     `concepts` is an optional JSON list of {text, category}; defaults to DEFAULT_CONCEPTS.
+    `component_id` (where the frame was captured) enables metric defect measurement.
     """
     concept_list = _parse_concepts(concepts)
+    scale_ref = _scale_ref(component_id)
     data = await file.read(MAX_UPLOAD_BYTES + 1)
     if len(data) > MAX_UPLOAD_BYTES:
         raise HTTPException(413, "Image larger than 20 MB")
@@ -125,13 +136,16 @@ async def inspect_segment(file: UploadFile, concepts: str | None = Form(None)):
     except (UnidentifiedImageError, Image.DecompressionBombError, OSError):
         raise HTTPException(400, "Not a readable image")
 
-    return await segment_image(image_url, width, height, concept_list)
+    return await segment_image(image_url, width, height, concept_list, scale_ref)
 
 
 @app.post("/api/inspect/segment-video", response_model=VideoReport)
-async def inspect_segment_video(file: UploadFile, concepts: str | None = Form(None)):
+async def inspect_segment_video(
+    file: UploadFile, concepts: str | None = Form(None), component_id: str | None = Form(None)
+):
     """Track structural elements + defects through a clip with SAM 3.1 (resampled to 5 fps, max 20 s)."""
     concept_list = _parse_concepts(concepts)
+    scale_ref = _scale_ref(component_id)
     with tempfile.TemporaryDirectory() as tmp:
         src, dst = os.path.join(tmp, "in"), os.path.join(tmp, "clip.mp4")
         size = 0
@@ -146,7 +160,7 @@ async def inspect_segment_video(file: UploadFile, concepts: str | None = Form(No
         except (ValueError, av.FFmpegError, IndexError) as e:
             raise HTTPException(400, f"Not a readable video: {e}")
         try:
-            return await segment_video(dst, video, concept_list)
+            return await segment_video(dst, video, concept_list, scale_ref)
         except MetaAPIError as e:
             raise HTTPException(502, str(e))
 

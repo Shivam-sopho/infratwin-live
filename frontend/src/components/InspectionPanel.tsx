@@ -2,8 +2,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api";
 import { useTwin } from "../store";
 import { CATEGORY_COLOR } from "../theme";
-import type { Concept, ConceptCategory, Detection, FindingIn, SegmentationReport, VideoReport } from "../types";
+import type { Concept, ConceptCategory, Detection, FindingIn, Metrology, SegmentationReport, VideoReport } from "../types";
 import { cropThumbnail, seek, toUV } from "./inspection/capture";
+import { metrologySummary, metrologyTooltip } from "./inspection/metrology";
 import { Overlay, detLabel } from "./inspection/Overlay";
 
 const COST_PER_IMAGE = 0.0025;
@@ -25,6 +26,7 @@ interface DefectRow {
   hostOverlap: number | null;
   frames: number | null;
   bestFrame: number | null;
+  metrology: Metrology | null;
 }
 
 function defectRows(run: Run): DefectRow[] {
@@ -41,6 +43,7 @@ function defectRows(run: Run): DefectRow[] {
         hostOverlap: d.host_overlap,
         frames: null,
         bestFrame: null,
+        metrology: d.metrology ?? null,
       }));
   }
   return run.report.tracks
@@ -57,6 +60,7 @@ function defectRows(run: Run): DefectRow[] {
         hostOverlap: t.host_overlap,
         frames: t.frames.length,
         bestFrame: t.best_frame,
+        metrology: t.metrology,
       };
     });
 }
@@ -168,8 +172,8 @@ export function InspectionPanel() {
     const concepts = selected.map(({ text, category }) => ({ text, category }));
     try {
       const next: Run = isVideo
-        ? { kind: "video", report: await api.segmentVideo(file, concepts) }
-        : { kind: "image", report: await api.segment(file, concepts) };
+        ? { kind: "video", report: await api.segmentVideo(file, concepts, target || undefined) }
+        : { kind: "image", report: await api.segment(file, concepts, target || undefined) };
       setRun(next);
       setPinSel(new Set(defectRows(next).map((r) => r.id)));
     } catch (e) {
@@ -207,6 +211,7 @@ export function InspectionPanel() {
           bbox_uv: toUV(r.box, W, H),
           host_label: r.hostId ? (labelOf[r.hostId] ?? null) : null,
           frames_tracked: r.frames,
+          metrology: r.metrology,
           thumbnail,
         });
       }
@@ -219,6 +224,31 @@ export function InspectionPanel() {
       setBusy(null);
     }
   };
+
+  const targetSelect = (
+    <select
+      id="pin-target"
+      value={target}
+      onChange={(e) => setTarget(e.target.value)}
+      className="rounded-md border border-line bg-bg px-2 py-1 text-xs text-ink"
+      title="Where this media was captured. Sets the metric scale and where findings are pinned."
+    >
+      <option value="">Captured at…</option>
+      {assets.map((a) => (
+        <optgroup key={a.id} label={a.name}>
+          {a.components
+            .filter((c) => c.geometry)
+            .map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+        </optgroup>
+      ))}
+    </select>
+  );
+  const measured = rows.some((r) => r.metrology);
+  const scaleNote = rows.find((r) => r.metrology)?.metrology;
 
   const viewInTwin = (componentId: string) => {
     selectComponent(componentId);
@@ -234,6 +264,7 @@ export function InspectionPanel() {
           <button onClick={() => input.current?.click()} className="rounded-md border border-line px-2.5 py-1 text-xs text-ink hover:border-ink-3">
             {file ? "Change media" : "Load photo or video"}
           </button>
+          {targetSelect}
           <button
             onClick={segment}
             disabled={!file || !!busy || selected.length === 0}
@@ -353,7 +384,7 @@ export function InspectionPanel() {
                     <th className="pb-1 font-normal">On element</th>
                     {run.kind === "video" && <th className="pb-1 text-right font-normal">Frames</th>}
                     <th className="pb-1 text-right font-normal">Conf.</th>
-                    <th className="pb-1 text-right font-normal">Area px</th>
+                    {measured ? <th className="pb-1 text-right font-normal">Measured</th> : <th className="pb-1 text-right font-normal">Area px</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -391,41 +422,46 @@ export function InspectionPanel() {
                       </td>
                       {run.kind === "video" && <td className="py-1 text-right tabular-nums text-ink-2">{r.frames}</td>}
                       <td className="py-1 text-right tabular-nums text-ink-2">{r.confidence?.toFixed(2) ?? "—"}</td>
-                      <td className="py-1 text-right tabular-nums text-ink-2">{r.area_px.toLocaleString()}</td>
+                      {measured ? (
+                        <td className="py-1 text-right tabular-nums text-ink" title={r.metrology ? metrologyTooltip(r.metrology) : "No scale: defect not on a measurable host element"}>
+                          {r.metrology ? (
+                            <>
+                              {r.metrology.warnings.length > 0 && (
+                                <span className="mr-1 text-watch" aria-label="measurement warning">
+                                  ⚠
+                                </span>
+                              )}
+                              {metrologySummary(r.metrology)}
+                            </>
+                          ) : (
+                            <span className="text-ink-3">—</span>
+                          )}
+                        </td>
+                      ) : (
+                        <td className="py-1 text-right tabular-nums text-ink-2">{r.area_px.toLocaleString()}</td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
               </table>
 
-              <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-line pt-3">
-                <label className="text-ink-3" htmlFor="pin-target">
-                  Captured at
-                </label>
-                <select
-                  id="pin-target"
-                  value={target}
-                  onChange={(e) => setTarget(e.target.value)}
-                  className="rounded-md border border-line bg-bg px-2 py-1 text-xs text-ink"
-                >
-                  <option value="">Choose component…</option>
-                  {assets.map((a) => (
-                    <optgroup key={a.id} label={a.name}>
-                      {a.components
-                        .filter((c) => c.geometry)
-                        .map((c) => (
-                          <option key={c.id} value={c.id}>
-                            {c.name}
-                          </option>
-                        ))}
-                    </optgroup>
-                  ))}
-                </select>
+              <p className="mt-2 text-[11px] text-ink-3">
+                {scaleNote
+                  ? `Scale from ${scaleNote.scale_note} (${scaleNote.scale_mm_per_px} mm/px). Assumes a square-on view; inclination and depth need SAM 3D.`
+                  : target
+                    ? "No metric scale: no defect sits on a segmented element with known dimensions."
+                    : "Choose where this was captured (above) before running to get metric measurements."}
+              </p>
+              <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-line pt-3">
                 <button
                   onClick={pin}
                   disabled={!target || pinSel.size === 0 || !!busy}
+                  title={target ? undefined : "Choose where this was captured first"}
                   className="rounded-md border border-defect px-2.5 py-1 text-xs text-ink hover:bg-defect/15 disabled:opacity-40"
                 >
-                  {busy === "Pinning…" ? "Pinning…" : `Pin ${pinSel.size} defect${pinSel.size === 1 ? "" : "s"} to twin`}
+                  {busy === "Pinning…"
+                    ? "Pinning…"
+                    : `Pin ${pinSel.size} defect${pinSel.size === 1 ? "" : "s"} to ${target ? (components[target]?.name ?? "twin") : "twin"}`}
                 </button>
                 {notice && (
                   <span className="text-ink-2">

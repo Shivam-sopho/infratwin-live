@@ -2,6 +2,7 @@ import { api } from "../api";
 import { useTwin } from "../store";
 import type { Finding, Sensor } from "../types";
 import { Sparkline } from "./Sparkline";
+import { metrologySummary, metrologyTooltip } from "./inspection/metrology";
 import { StatusBadge } from "./StatusBadge";
 
 function SensorRow({ sensor }: { sensor: Sensor }) {
@@ -55,6 +56,12 @@ function FindingCard({ f }: { f: Finding }) {
           {f.confidence != null && ` · conf ${f.confidence.toFixed(2)}`}
           {f.host_label && ` · on ${f.host_label}`}
         </div>
+        {f.metrology && (
+          <div className="tabular-nums text-ink" title={metrologyTooltip(f.metrology)}>
+            {f.metrology.warnings.length > 0 && <span className="mr-1 text-watch">⚠</span>}
+            {metrologySummary(f.metrology)}
+          </div>
+        )}
         <div className="truncate text-ink-3">
           {f.source === "video" ? `video, ${f.frames_tracked} frames` : "photo"} · {f.source_name} · {fmtTime(f.t)}
         </div>

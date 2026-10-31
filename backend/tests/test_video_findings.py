@@ -35,13 +35,18 @@ def test_segment_video_builds_tracks(monkeypatch):
     monkeypatch.setattr(sam31_video.meta, "stream", fake_stream)
 
     concepts = [Concept(text="concrete pier", category="structural"), Concept(text="concrete crack", category="defect")]
-    report = asyncio.run(sam31_video.segment_video("x.mp4", VideoMeta(width=320, height=334, fps=5, n_frames=20), concepts))
+    from app.metrology import ScaleRef
+
+    ref = ScaleRef(component_id="B07.P4", component_name="Pier 4", axis="width", length_m=2.4)
+    report = asyncio.run(sam31_video.segment_video("x.mp4", VideoMeta(width=320, height=334, fps=5, n_frames=20), concepts, ref))
 
     assert calls == {"upload": 1, "delete": 1}
     crack = next(t for t in report.tracks if t.id == "concrete-crack-0")
     assert [f.f for f in crack.frames] == [0, 3]
     assert crack.host_id == "concrete-pier-0" and crack.host_overlap == 1.0
     assert crack.confidence == 0.91
+    assert crack.metrology is not None and crack.metrology.area_m2 > 0
+    assert next(t for t in report.tracks if t.id == "concrete-pier-0").metrology is None
     assert report.est_cost_usd == round(0.0002 * 50 * 2, 4)  # 50-frame billing minimum
 
 

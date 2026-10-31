@@ -13,6 +13,7 @@ dependencies = [
     "pillow>=13.0.0",
     "python-multipart>=0.0.32",
     "av>=18.1.0",
+    "scikit-image>=0.26.0",
 ]
 
 [dependency-groups]

@@ -136,6 +136,7 @@ class CognitiveTwin:
                     "on_element": f.host_label,
                     "source": f.source,
                     "age_min": round((time.time() - f.t) / 60, 1),
+                    "metrology": f.metrology.model_dump(exclude={"assumptions"}, exclude_none=True) if f.metrology else None,
                 }
                 for f in self.findings()
                 if f.component_id == comp.id
