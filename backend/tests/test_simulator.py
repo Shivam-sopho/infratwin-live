@@ -46,3 +46,23 @@ def test_demo_reset_endpoint(monkeypatch):
     assert not main.sim.alerts and not main.sim._anomalies and not main.twin.triages
     assert main.sim.status()["assets"]["B07"] == "nominal"
     assert sent[-1]["type"] == "snapshot" and sent[-1]["alerts"] == []
+
+
+def test_samples_only_serve_manifest_files(tmp_path, monkeypatch):
+    import json as _json
+
+    from fastapi.testclient import TestClient
+
+    from app import main
+
+    (tmp_path / "images").mkdir()
+    (tmp_path / "images" / "a.jpg").write_bytes(b"\xff\xd8jpeg")
+    (tmp_path / "secret.txt").write_text("nope")
+    (tmp_path / "manifest.json").write_text(_json.dumps({"source": "test", "themes": {"crack": [{"file": "data/a.jpg", "labels": ["Crack"], "boxes": []}]}}))
+    monkeypatch.setattr(main, "SAMPLES_DIR", tmp_path)
+    c = TestClient(main.app)
+    items = c.get("/api/samples").json()["items"]
+    assert [i["name"] for i in items] == ["a.jpg"] and items[0]["theme"] == "crack"
+    assert c.get("/api/samples/a.jpg").content == b"\xff\xd8jpeg"
+    assert c.get("/api/samples/secret.txt").status_code == 404
+    assert c.get("/api/samples/..%2Fsecret.txt").status_code == 404

@@ -348,3 +348,13 @@ export interface WorkZoneReport {
   any_violation: boolean;
   note: string;
 }
+
+export interface SampleItem {
+  name: string;
+  theme: string;
+  url: string;
+  labels: string[];
+  width: number | null;
+  height: number | null;
+  boxes: { label: string; bbox_xywh_norm: [number, number, number, number] }[];
+}

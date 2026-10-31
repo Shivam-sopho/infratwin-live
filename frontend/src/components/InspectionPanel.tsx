@@ -3,7 +3,8 @@ import { api } from "../api";
 import { useTwin } from "../store";
 import { CATEGORY_COLOR } from "../theme";
 import { STATUS_COLOR, STATUS_ICON } from "../theme";
-import type { Concept, ConceptCategory, Detection, FindingIn, Metrology, SegmentationReport, VideoReport, WorkZoneReport } from "../types";
+import type { Concept, ConceptCategory, Detection, FindingIn, Metrology, SampleItem, SegmentationReport, VideoReport, WorkZoneReport } from "../types";
+import { gtBoxesPx, scoreAgainstGroundTruth } from "./inspection/groundTruth";
 import { alignMaskToCrop, cropWithRect, seek, toUV } from "./inspection/capture";
 import { metrologySummary, metrologyTooltip } from "./inspection/metrology";
 import { Overlay, detLabel } from "./inspection/Overlay";
@@ -107,6 +108,9 @@ export function InspectionPanel() {
   const [target, setTarget] = useState<string>("");
   const [pinSel, setPinSel] = useState<Set<string>>(new Set());
   const [zone, setZone] = useState<WorkZoneReport | null>(null);
+  const [samples, setSamples] = useState<SampleItem[]>([]);
+  const [sample, setSample] = useState<SampleItem | null>(null);
+  const [showGt, setShowGt] = useState(true);
   const [radius, setRadius] = useState(3);
   const input = useRef<HTMLInputElement>(null);
   const imgRef = useRef<HTMLImageElement | null>(null);
@@ -116,6 +120,7 @@ export function InspectionPanel() {
 
   useEffect(() => {
     api.vocabulary().then((v) => setVocab(v.map((c) => ({ ...c, on: true }))), (e) => setError(String(e)));
+    api.samples().then((r) => setSamples(r.items), () => undefined);
   }, []);
 
   useEffect(() => {
@@ -163,8 +168,16 @@ export function InspectionPanel() {
   const estFrames = Math.max(MIN_BILLED_FRAMES, Math.ceil(Math.min(duration ?? VIDEO_MAX_S, VIDEO_MAX_S) * VIDEO_FPS));
   const estCost = isVideo ? selected.length * estFrames * COST_PER_FRAME : selected.length * COST_PER_IMAGE;
 
-  const load = (f: File | undefined) => {
+  const loadSample = async (name: string) => {
+    const it = samples.find((x) => x.name === name);
+    if (!it) return;
+    const blob = await fetch(it.url).then((r) => r.blob());
+    load(new File([blob], it.name, { type: "image/jpeg" }), it);
+  };
+
+  const load = (f: File | undefined, fromSample: SampleItem | null = null) => {
     if (!f) return;
+    setSample(fromSample);
     setFile(f);
     setNatural(null);
     setDuration(null);
@@ -289,6 +302,27 @@ export function InspectionPanel() {
           <button onClick={() => input.current?.click()} className="rounded-md border border-line px-2.5 py-1 text-xs text-ink hover:border-ink-3">
             {file ? "Change media" : "Load photo or video"}
           </button>
+          {samples.length > 0 && (
+            <select
+              value={sample?.name ?? ""}
+              onChange={(e) => void loadSample(e.target.value)}
+              className="max-w-44 rounded-md border border-line bg-bg px-2 py-1 text-xs text-ink"
+              title="Real bridge-inspection images from dacl10k, with expert labels for scoring"
+            >
+              <option value="">Real sample (dacl10k)…</option>
+              {[...new Set(samples.map((x) => x.theme))].map((t) => (
+                <optgroup key={t} label={t.replace("_", " + ")}>
+                  {samples
+                    .filter((x) => x.theme === t)
+                    .map((x) => (
+                      <option key={x.name} value={x.name}>
+                        {x.labels.join(", ")}
+                      </option>
+                    ))}
+                </optgroup>
+              ))}
+            </select>
+          )}
           {targetSelect}
           <button
             onClick={segment}
@@ -357,6 +391,15 @@ export function InspectionPanel() {
               .sort((a, b) => (a.category === b.category ? b.area_px - a.area_px : a.category === "structural" ? -1 : 1))
               .map((d) => (
                 <Overlay key={d.id} d={d} W={W} active={hovered === d.id || hovered === d.host_id} onHover={isVideo ? undefined : setHovered} />
+              ))}
+            {sample && showGt && !isVideo &&
+              gtBoxesPx(sample, W, H).map((g, k) => (
+                <g key={`gt${k}`} pointerEvents="none">
+                  <rect x={g.box[0]} y={g.box[1]} width={g.box[2] - g.box[0]} height={g.box[3] - g.box[1]} fill="none" stroke="#e5e7eb" strokeWidth={Math.max(1, W / 600)} strokeDasharray={`${W / 120} ${W / 200}`} />
+                  <text x={g.box[0] + 3} y={g.box[3] - 4} fontSize={W / 60} fill="#e5e7eb" stroke="#0b0f14" strokeWidth={W / 900} paintOrder="stroke">
+                    GT {g.label}
+                  </text>
+                </g>
               ))}
             {zone?.workers
               .filter((w) => w.bbox && w.bbox.length >= 4)
@@ -487,6 +530,30 @@ export function InspectionPanel() {
                 </tbody>
               </table>
 
+              {sample && run.kind === "image" && (
+                <div className="mt-2 rounded border border-line px-2 py-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-ink">Zero-shot check against dacl10k expert labels</span>
+                    <label className="flex items-center gap-1 text-ink-3">
+                      <input type="checkbox" checked={showGt} onChange={() => setShowGt((v) => !v)} /> show GT boxes
+                    </label>
+                  </div>
+                  <table className="mt-1 w-full tabular-nums">
+                    <tbody>
+                      {scoreAgainstGroundTruth(sample, run.report.detections, W, H).map((c) => (
+                        <tr key={c.label} className="border-t border-line/60">
+                          <td className="py-0.5 text-ink-2">{c.label}</td>
+                          <td className="py-0.5 text-ink-3">{c.concept ?? "not in vocabulary"}</td>
+                          <td className="py-0.5 text-right text-ink">{c.concept ? `${c.found}/${c.gt} found` : `${c.gt} labelled`}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  <p className="mt-1 text-[11px] text-ink-3">
+                    Image and labels: dacl10k (Flotzinger et al., WACV 2024). A labelled instance counts as found when a detection of the matching concept overlaps ≥30% of the smaller box.
+                  </p>
+                </div>
+              )}
               {zone && (
                 <div className={`mt-2 rounded border px-2 py-1.5 ${zone.any_violation ? "border-critical/60" : "border-line"}`}>
                   <div className="text-ink">

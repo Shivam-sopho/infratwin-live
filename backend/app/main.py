@@ -36,6 +36,7 @@ from .voice import ActionResult, NoteStore, VoiceResult, check_wav, interpret, t
 ASSETS = build_corridor()
 sim = Simulator(ASSETS)
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
+SAMPLES_DIR = Path(__file__).resolve().parents[2] / "demo-media" / "dacl10k"  # local only, git-ignored
 findings = FindingStore(DATA_DIR / "findings.json")
 notes = NoteStore(DATA_DIR / "notes.json")
 forecasts = ForecastStore(DATA_DIR / "forecasts")
@@ -157,6 +158,32 @@ def _parse_concepts(concepts: str | None) -> list[Concept]:
     if not 0 < len(concept_list) <= MAX_CONCEPTS:
         raise HTTPException(400, f"Provide 1-{MAX_CONCEPTS} concepts")
     return concept_list
+
+
+def _sample_manifest() -> dict:
+    path = SAMPLES_DIR / "manifest.json"
+    return json.loads(path.read_text()) if path.exists() else {"source": None, "themes": {}}
+
+
+@app.get("/api/samples")
+def list_samples():
+    """Real bridge-inspection images (dacl10k) with expert ground-truth boxes, if downloaded locally."""
+    m = _sample_manifest()
+    items = [
+        {**i, "name": Path(i["file"]).name, "theme": theme, "url": f"/api/samples/{Path(i['file']).name}"}
+        for theme, its in m["themes"].items()
+        for i in its
+        if (SAMPLES_DIR / "images" / Path(i["file"]).name).exists()
+    ]
+    return {"source": m["source"], "items": items}
+
+
+@app.get("/api/samples/{name}")
+def get_sample(name: str):
+    allowed = {Path(i["file"]).name for its in _sample_manifest()["themes"].values() for i in its}
+    if name not in allowed:  # only files listed in the manifest are ever served
+        raise HTTPException(404, "Unknown sample")
+    return FileResponse(SAMPLES_DIR / "images" / name, media_type="image/jpeg")
 
 
 @app.get("/api/inspect/vocabulary", response_model=list[Concept])

@@ -1,4 +1,4 @@
-import type { Asset, Concept, Finding, FindingIn, Forecast, Lift, Scenario, SegmentationReport, Verification, VideoReport, VoiceResult, WorkZoneReport } from "./types";
+import type { Asset, SampleItem, Concept, Finding, FindingIn, Forecast, Lift, Scenario, SegmentationReport, Verification, VideoReport, VoiceResult, WorkZoneReport } from "./types";
 
 async function json<T>(res: Response): Promise<T> {
   if (!res.ok) {
@@ -84,5 +84,6 @@ export const api = {
     body.append("radius_m", String(radiusM));
     return fetch("/api/inspect/workzone", { method: "POST", body }).then(json<WorkZoneReport>);
   },
+  samples: () => fetch("/api/samples").then(json<{ source: string | null; items: SampleItem[] }>),
   deleteFinding: (id: string) => fetch(`/api/findings/${id}`, { method: "DELETE" }).then(json),
 };

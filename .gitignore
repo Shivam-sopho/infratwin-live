@@ -20,3 +20,6 @@ dist/
 
 # local data
 backend/data/
+
+# downloaded datasets (third-party licences; not redistributed)
+demo-media/
