@@ -15,7 +15,9 @@ Build order: each step ships a working, demoable increment on top of the foundat
 | 8 | Occlusion-adaptive UAV re-planner: Algorithm 2 view scoring + collision-checked paths as tools for Muse Wonder; 3D flight on twin + map | `muse-wonder-1.0` | ✅ |
 | 9 | Voice field commands: push-to-talk → Voice Transcribe (twin vocabulary as keywords) → Muse Spark intents → notes, measurements, triage, drone re-scan, navigation | `muse-voice-transcribe-1.0` + `muse-spark-1.3` | ✅ |
 | 10 | Time-travel previews: Muse Spark reasons (narrative + edit prompt) → Muse Image edits the defect photo for +6 months / +2 years / repaired; cached, labelled illustrative | `muse-spark-1.3` + `muse-image-1.0` | ✅ |
-| 11 | Demo script polish, README, 2-min video | — | ⬜ |
+| 11 | Demo walkthrough (6 narrated steps), demo reset, README | — | ✅ |
+| 12 | Real data: KW51 bridge replay with temperature-compensated modal monitoring; dacl10k sample library with ground-truth scoring; sensor ingest API | — | ✅ |
+| 13 | Production: access token, daily spend guard, single-container build, CI (pending GitHub workflow scope) | — | ✅ |
 
 ## Integration notes (from dev.meta.ai/docs)
 
