@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Download the real datasets used by the app into demo-media/ (git-ignored; never redistributed).
 #   - dacl10k bridge-inspection images + expert labels (Hugging Face mirror Voxel51/dacl10k)
-#   - KW51 railway bridge tracked modes (Zenodo 10.5281/zenodo.3745914, CC BY-NC-SA 4.0)
+#   - KW51 railway bridge tracked modes + Oct 2018 train passages (Zenodo 10.5281/zenodo.3745914, CC BY-NC-SA 4.0)
+#   - KW51 finite-element model and blueprints (Zenodo 10.5281/zenodo.17366772, CC BY-NC-SA 4.0)
 set -euo pipefail
 cd "$(dirname "$0")/.."
 HF=https://huggingface.co/datasets/Voxel51/dacl10k/resolve/main
@@ -21,5 +22,17 @@ echo "KW51: tracked modes (13 MB)…"
 if [ ! -f demo-media/kw51/trackedmodes/trackedmodes/trackedmodes.mat ]; then
   curl -fsSL -o demo-media/kw51/trackedmodes.zip "https://zenodo.org/records/3745914/files/trackedmodes.zip"
   unzip -oq demo-media/kw51/trackedmodes.zip -d demo-media/kw51/trackedmodes
+fi
+echo "KW51: finite-element model + blueprints (5 MB)…"
+mkdir -p demo-media/kw51/fe_model
+for f in readme.txt model_kw51.m modal_analysis.m select_sensors.m simulate_trainpassage.m xrail_2_P.m overview.pdf blueprints.zip; do
+  [ -f "demo-media/kw51/fe_model/$f" ] || curl -fsSL -o "demo-media/kw51/fe_model/$f" "https://zenodo.org/records/17366772/files/$f"
+done
+unzip -oq demo-media/kw51/fe_model/blueprints.zip -d demo-media/kw51/fe_model/blueprints
+
+echo "KW51: train passages, Oct 2018 (187 MB)…"
+if [ ! -d demo-media/kw51/traindata/traindata_201810 ]; then
+  curl -fsSL -o demo-media/kw51/traindata_201810.zip "https://zenodo.org/records/3745914/files/traindata_201810.zip"
+  unzip -oq demo-media/kw51/traindata_201810.zip -d demo-media/kw51/traindata
 fi
 echo "Done. Restart the backend to load KW51 and the sample library."

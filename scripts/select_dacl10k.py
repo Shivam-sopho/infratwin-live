@@ -7,7 +7,13 @@ THEMES = {
     "spalling_rebar": {"Spalling", "ExposedRebars"},
     "efflorescence": {"Efflorescence"},
     "rust_wetspot": {"Rust", "Wetspot"},
+    "cavity_hollow": {"Cavity", "Hollowareas", "Rockpocket"},
+    "bearing_joint": {"Bearing", "EJoint"},
+    "drainage": {"Drainage"},
+    "weathering": {"Weathering"},
 }
+MIN_COVER = {"crack": 0.03, "bearing_joint": 0.03, "drainage": 0.03}
+PER_THEME = 8
 def info(s):
     dets = s["od_ground_truth"]["detections"]
     labels = [d["label"] for d in dets]
@@ -29,13 +35,13 @@ for theme, want in THEMES.items():
         cover = sum(area.get(l, 0) for l in want)
         if not want <= set(labels) and theme == "spalling_rebar":
             continue
-        if cover < (0.03 if theme == "crack" else 0.08):
+        if cover < MIN_COVER.get(theme, 0.08):
             continue
         noise = sum(1 for l in labels if l in {"Graffiti", "PEquipment", "JTape", "Restformwork"})
         cands.append((cover - 0.05 * noise, s))
     cands.sort(key=lambda c: -c[0])
     picked[theme] = []
-    for _, s in cands[:6]:
+    for _, s in cands[:PER_THEME]:
         used.add(s["filepath"])
         labels, area = info(s)
         picked[theme].append({
