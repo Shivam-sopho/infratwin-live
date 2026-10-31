@@ -29,6 +29,11 @@ and Muse models for metrology, drone re-planning, voice logging and deterioratio
   plus distance transform), with stated assumptions and plausibility warnings. The normal-gradient plane raycasting
   method (depth gradients → surface normal → ray/plane intersection, giving true area and inclination) is implemented
   and validated on synthetic tilted planes, ready for SAM 3D depth
+- **UAV re-scan planner (Muse Wonder + Algorithm 2)**: obstacles such as drainage pipes and scaffolding are part of
+  the twin. The geometry engine samples the defect region, scores camera poses by line-of-sight coverage and viewing
+  angle, and plans collision-checked flights. Muse Wonder calls these as tools, compares standoffs, and returns a
+  mission plan. The twin and the map show candidate poses, the chosen camera and the flight path (e.g. a crack behind
+  the downpipe: 30% visible square-on → 90% from yaw −30°)
 - **Cognitive Twin (Muse Spark)**: when a sensor goes critical, the twin hands Muse Spark the component's live traces,
   thresholds, neighbouring sensor states, recent alerts and pinned findings. Its reasoning streams into the panel,
   followed by a structured assessment: severity, causes, evidence, actions, and whether a visual audit is needed
@@ -59,6 +64,8 @@ backend/            FastAPI (Python 3.12, uv)
   app/findings.py     findings pinned to components (persisted to backend/data/findings.json)
   app/triage.py       Cognitive Twin: alert context assembly + streamed Muse Spark triage
   app/metrology.py    host-scale defect measurement + normal-gradient plane raycasting
+  app/uav_planner.py  Algorithm 2 view scoring (ray/AABB occlusion) + collision-checked flight paths
+  app/missions.py     Muse Wonder mission planning with the planner as function tools
 frontend/           Vite + React 19 + TypeScript + Tailwind v4
   src/components/     CorridorMap, TwinViewer, InspectionPanel, Inspector, AlertsFeed, Sparkline
 modal_workers/      SAM 3D Objects / Body GPU services (coming)

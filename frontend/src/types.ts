@@ -26,6 +26,13 @@ export interface Component {
   sensor_ids: string[];
 }
 
+export interface Occluder {
+  id: string;
+  name: string;
+  kind: string;
+  geometry: Geometry;
+}
+
 export interface Asset {
   id: string;
   name: string;
@@ -36,6 +43,8 @@ export interface Asset {
   description: string;
   components: Component[];
   sensors: Sensor[];
+  occluders: Occluder[];
+  uav_home: [number, number, number] | null;
 }
 
 export interface Alert {
@@ -97,12 +106,15 @@ export type ServerMessage =
       status: StatusSnapshot;
       findings: Finding[];
       triages: Triage[];
+      missions: Mission[];
     }
   | { type: "tick"; t: number; readings: Record<string, number>; status: StatusSnapshot }
   | { type: "alert"; alert: Alert }
   | { type: "findings"; added: Finding[]; removed: string[] }
   | { type: "triage"; triage: Triage }
-  | { type: "triage_delta"; id: string; delta: string };
+  | { type: "triage_delta"; id: string; delta: string }
+  | { type: "mission"; mission: Mission }
+  | { type: "mission_delta"; id: string; delta: string };
 
 export type ConceptCategory = "structural" | "defect";
 
@@ -193,6 +205,51 @@ export interface Triage {
   status: "running" | "done" | "error";
   reasoning: string;
   result: TriageResult | null;
+  error: string | null;
+  ms: number | null;
+}
+
+export type Vec3 = [number, number, number];
+
+export interface Viewpoint {
+  id: string;
+  yaw_deg: number;
+  pitch_deg: number;
+  standoff_m: number;
+  position: Vec3;
+  look_at: Vec3;
+  coverage: number;
+  mean_incidence_deg: number | null;
+  quality: number;
+  blocked_by: string[];
+}
+
+export interface MissionPlan {
+  summary: string;
+  chosen_viewpoint_ids: string[];
+  standoff_m: number;
+  expected_coverage: number;
+  gimbal_notes: string;
+  safety_notes: string[];
+  rationale: string[];
+}
+
+export interface Mission {
+  id: string;
+  t: number;
+  asset_id: string;
+  component_id: string;
+  finding_id: string | null;
+  model: string;
+  status: "running" | "done" | "error";
+  reasoning: string;
+  tool_calls: { name: string; args: Record<string, unknown>; summary: string }[];
+  baseline: Viewpoint | null;
+  candidates: Viewpoint[];
+  chosen: Viewpoint[];
+  path: { waypoints: Vec3[]; length_m: number; detours: number } | null;
+  plan: MissionPlan | null;
+  note: string | null;
   error: string | null;
   ms: number | null;
 }

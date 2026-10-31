@@ -4,7 +4,7 @@ Component geometry here is a placeholder BIM: simple primitives that the Scan-to
 (Union-Find) stage will later replace with segmented meshes.
 """
 
-from .models import Asset, Component, Geometry, Sensor
+from .models import Asset, Component, Geometry, Occluder, Sensor
 
 # kind -> (label, unit, baseline, watch threshold, critical threshold). Higher = worse.
 SENSOR_TEMPLATES: dict[str, tuple[str, str, float, float, float]] = {
@@ -91,6 +91,23 @@ def _bridge() -> Asset:
     b.add("A2", "Abutment East", "abutment", Geometry(shape="box", position=(half + 2, 8, 0), size=(4, 16, 14)), ["strain"])
     b.add("WX", "Weather Station", "environment", None, ["wind", "temperature"])
 
+    # Pier 4 front face is at z = 3.5; a drainage downpipe and scaffolding sit just in front of it.
+    p4x = -half + span * 4
+    occluders = [
+        Occluder(
+            id="B07.OC1",
+            name="Drainage downpipe",
+            kind="pipe",
+            geometry=Geometry(shape="cylinder", position=(p4x + 0.2, 7, 4.3), size=(0.3, 14, 0)),
+        ),
+        Occluder(
+            id="B07.OC2",
+            name="Maintenance scaffolding",
+            kind="scaffold",
+            geometry=Geometry(shape="box", position=(p4x + 2.6, 4.5, 5.6), size=(2.6, 9, 1.6)),
+        ),
+    ]
+
     return Asset(
         id="B07",
         name="Riverside Viaduct B-07",
@@ -101,6 +118,8 @@ def _bridge() -> Asset:
         description="7-span prestressed concrete box-girder viaduct, 210 m, 4-lane highway.",
         components=b.components,
         sensors=b.sensors,
+        occluders=occluders,
+        uav_home=(p4x + 10, 2.0, 30.0),
     )
 
 

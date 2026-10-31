@@ -15,6 +15,7 @@ from .config import settings
 from .corridor import build_corridor
 from .findings import Finding, FindingIn, FindingStore
 from .metrology import ScaleRef, scale_ref_for
+from .missions import MissionPlanner
 from .meta_client import MUSE_SPARK, MetaAPIError, meta
 from .models import Asset
 from .sam31 import DEFAULT_CONCEPTS, Concept, SegmentationReport, prepare_image, segment_image
@@ -28,6 +29,24 @@ findings = FindingStore(Path(__file__).resolve().parent.parent / "data" / "findi
 ASSET_OF_COMPONENT = {c.id: a.id for a in ASSETS for c in a.components}
 twin = CognitiveTwin(sim, lambda: findings.all(), auto=settings.triage_auto)
 sim.alert_listeners.append(twin.on_alert)
+
+
+def _mission_context(component_id: str) -> dict:
+    latest = next((t for t in reversed(twin.triages) if t.component_id == component_id and t.result), None)
+    comp = sim.components[component_id]
+    return {
+        "component_health": {sim.sensors[s].label: sim.sensor_status[s] for s in comp.sensor_ids},
+        "latest_triage": latest.result.model_dump() if latest else None,
+    }
+
+
+planner = MissionPlanner(
+    {a.id: a for a in ASSETS},
+    sim.components,
+    lambda msg: sim.broadcast(msg),
+    lambda: findings.all(),
+    _mission_context,
+)
 
 
 @asynccontextmanager
@@ -204,11 +223,35 @@ async def triage_alert(req: TriageRequest):
     return {"ok": True}
 
 
+class MissionRequest(BaseModel):
+    component_id: str
+    finding_id: str | None = None
+
+
+@app.post("/api/missions")
+async def create_mission(req: MissionRequest):
+    """Plan a UAV re-scan of a component face (optionally a pinned finding's region) with Muse Wonder."""
+    comp = sim.components.get(req.component_id)
+    if comp is None:
+        raise HTTPException(404, f"Unknown component {req.component_id}")
+    if comp.geometry is None or comp.geometry.shape not in ("box", "cylinder"):
+        raise HTTPException(400, f"{comp.name} has no planar face to plan against yet")
+    if req.finding_id and not any(f.id == req.finding_id for f in findings.all()):
+        raise HTTPException(404, f"Unknown finding {req.finding_id}")
+    m = planner.start(req.component_id, req.finding_id)
+    return {"id": m.id}
+
+
 @app.websocket("/ws/telemetry")
 async def telemetry(ws: WebSocket):
     await ws.accept()
     await ws.send_json(
-        {**sim.snapshot(), "findings": [f.model_dump() for f in findings.all()], "triages": twin.snapshot()}
+        {
+            **sim.snapshot(),
+            "findings": [f.model_dump() for f in findings.all()],
+            "triages": twin.snapshot(),
+            "missions": planner.snapshot(),
+        }
     )
     sim.clients.add(ws)
     try:

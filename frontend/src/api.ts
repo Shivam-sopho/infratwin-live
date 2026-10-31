@@ -51,5 +51,11 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ alert_id }),
     }).then(json),
+  createMission: (component_id: string, finding_id?: string) =>
+    fetch("/api/missions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ component_id, finding_id: finding_id ?? null }),
+    }).then(json<{ id: string }>),
   deleteFinding: (id: string) => fetch(`/api/findings/${id}`, { method: "DELETE" }).then(json),
 };

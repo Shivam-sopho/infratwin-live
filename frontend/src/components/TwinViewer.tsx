@@ -5,6 +5,7 @@ import * as THREE from "three";
 import { useTwin } from "../store";
 import { CATEGORY_COLOR, CONCRETE, STATUS_COLOR, STATUS_ICON, STATUS_LABEL } from "../theme";
 import type { Asset, Component, Finding, Geometry, Status } from "../types";
+import { MissionOverlay, Occluders, useAssetMission } from "./twin/MissionOverlay";
 
 function ComponentMesh({ comp, status }: { comp: Component; status: Status }) {
   const mat = useRef<THREE.MeshStandardMaterial>(null);
@@ -69,15 +70,22 @@ function ComponentMesh({ comp, status }: { comp: Component; status: Status }) {
   );
 }
 
-/** Fly the camera to the selected component (or back to the whole asset when cleared). */
+/** Fly the camera to the selected mission's flight, else the selected component, else the whole asset. */
 function FocusOnSelection() {
   const bounds = useBounds();
   const scene = useThree((s) => s.scene);
   const selectedId = useTwin((s) => s.selectedComponentId);
+  const missionPath = useTwin((s) => s.missions.find((m) => m.id === s.selectedMissionId)?.path?.waypoints);
   useEffect(() => {
     const obj = selectedId ? scene.getObjectByName(selectedId) : undefined;
-    (obj ? bounds.refresh(obj) : bounds.refresh()).clip().fit();
-  }, [selectedId, bounds, scene]);
+    if (missionPath) {
+      const box = new THREE.Box3().setFromPoints(missionPath.map((p) => new THREE.Vector3(...p)));
+      if (obj) box.expandByObject(obj);
+      bounds.refresh(box).clip().fit();
+    } else {
+      (obj ? bounds.refresh(obj) : bounds.refresh()).clip().fit();
+    }
+  }, [selectedId, missionPath, bounds, scene]);
   return null;
 }
 
@@ -179,6 +187,7 @@ export function TwinViewer() {
   const findings = useTwin((s) => s.findings);
 
   const asset = assets.find((a) => a.id === selectedAssetId) ?? assets[0];
+  const mission = useAssetMission(asset?.id ?? "");
   if (!asset) return <div className="grid h-full place-items-center text-sm text-ink-3">Loading twin…</div>;
   const status = assetStatus[asset.id] ?? "nominal";
   const physical = asset.components.filter((c) => c.geometry);
@@ -202,6 +211,8 @@ export function TwinViewer() {
         {assetFindings.map((f) => (
           <FindingMarker key={f.id} f={f} g={geomOf[f.component_id]} />
         ))}
+        <Occluders asset={asset} />
+        {mission && <MissionOverlay mission={mission} />}
         <Surroundings type={asset.type} />
         <Grid args={[600, 600]} cellSize={5} sectionSize={25} cellColor="#1f2a37" sectionColor="#273449" fadeDistance={500} infiniteGrid />
         <OrbitControls makeDefault maxPolarAngle={Math.PI / 2.05} />
@@ -219,6 +230,12 @@ export function TwinViewer() {
             <span className="inline-block h-2 w-2 rounded-sm bg-defect" />
             {assetFindings.length} pinned finding{assetFindings.length === 1 ? "" : "s"}
             <span className="text-ink-3">· placement approx.</span>
+          </div>
+        )}
+        {mission?.path && (
+          <div className="mt-1 flex items-center gap-1.5 text-xs text-ink-2">
+            <span className="inline-block h-0.5 w-3" style={{ background: "#34d399" }} />
+            UAV re-scan {mission.id}: {Math.round((mission.baseline?.coverage ?? 0) * 100)}% → {Math.round((mission.chosen[0]?.coverage ?? 0) * 100)}% visible
           </div>
         )}
       </div>

@@ -39,6 +39,15 @@ class Component(BaseModel):
     sensor_ids: list[str] = []
 
 
+class Occluder(BaseModel):
+    """Non-structural obstacle near the structure (pipes, scaffolding) that blocks camera views and flight."""
+
+    id: str
+    name: str
+    kind: str
+    geometry: Geometry
+
+
 class Asset(BaseModel):
     id: str
     name: str
@@ -49,6 +58,8 @@ class Asset(BaseModel):
     description: str
     components: list[Component]
     sensors: list[Sensor]
+    occluders: list[Occluder] = []
+    uav_home: tuple[float, float, float] | None = None  # drone launch point, asset-local metres
 
 
 class Alert(BaseModel):

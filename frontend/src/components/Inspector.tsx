@@ -40,7 +40,17 @@ function FindingCard({ f }: { f: Finding }) {
       <div className="min-w-0 flex-1 text-[11px] leading-snug">
         <div className="flex items-baseline justify-between gap-1">
           <span className="truncate text-xs font-medium text-ink">{f.concept}</span>
-          <button
+          <span className="flex shrink-0 items-center gap-2">
+            <button
+              className="text-[11px] text-accent hover:underline"
+              onClick={(e) => {
+                e.stopPropagation();
+                void api.createMission(f.component_id, f.id);
+              }}
+            >
+              Plan re-scan
+            </button>
+            <button
             aria-label={`Delete ${f.id}`}
             onClick={(e) => {
               e.stopPropagation();
@@ -50,6 +60,7 @@ function FindingCard({ f }: { f: Finding }) {
           >
             ×
           </button>
+          </span>
         </div>
         <div className="text-ink-2">
           {f.id}
@@ -116,8 +127,15 @@ export function Inspector() {
 
       {comp ? (
         <div className="flex flex-col gap-2">
-          <div className="text-sm font-semibold text-ink">
-            {comp.name} <span className="font-normal text-ink-3">· {comp.kind.replace("_", " ")}</span>
+          <div className="flex items-baseline justify-between gap-2">
+            <div className="text-sm font-semibold text-ink">
+              {comp.name} <span className="font-normal text-ink-3">· {comp.kind.replace("_", " ")}</span>
+            </div>
+            {comp.geometry && comp.geometry.shape !== "arch" && (
+              <button className="text-[11px] text-accent hover:underline" onClick={() => void api.createMission(comp.id)}>
+                Plan drone re-scan
+              </button>
+            )}
           </div>
           {comp.sensor_ids.map((id) => (
             <SensorRow key={id} sensor={sensors[id]} />

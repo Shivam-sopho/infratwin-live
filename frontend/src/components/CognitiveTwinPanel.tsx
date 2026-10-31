@@ -1,3 +1,4 @@
+import { api } from "../api";
 import { useTwin } from "../store";
 import { SEVERITY_STATUS, STATUS_COLOR, STATUS_ICON } from "../theme";
 import type { Triage } from "../types";
@@ -67,15 +68,23 @@ function TriageCard({ tri }: { tri: Triage }) {
               <span className="text-ink-2">
                 Visual audit: <span className="text-ink">{r.visual_audit_target}</span>
               </span>
-              <button
-                className="shrink-0 rounded border border-accent px-2 py-0.5 text-[11px] text-ink hover:bg-accent/15"
-                onClick={() => {
-                  selectComponent(tri.component_id);
-                  setCenterTab("inspect");
-                }}
-              >
-                Open inspection
-              </button>
+              <span className="flex shrink-0 gap-1">
+                <button
+                  className="rounded border border-accent px-2 py-0.5 text-[11px] text-ink hover:bg-accent/15"
+                  onClick={() => void api.createMission(tri.component_id)}
+                >
+                  Plan drone re-scan
+                </button>
+                <button
+                  className="rounded border border-line px-2 py-0.5 text-[11px] text-ink-2 hover:text-ink"
+                  onClick={() => {
+                    selectComponent(tri.component_id);
+                    setCenterTab("inspect");
+                  }}
+                >
+                  Open inspection
+                </button>
+              </span>
             </div>
           )}
           <div className="text-[10px] text-ink-3">

@@ -2,9 +2,17 @@ import { useEffect, useRef } from "react";
 import * as maplibregl from "maplibre-gl";
 import type { StyleSpecification } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
+import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?url";
 import { useTwin } from "../store";
 import { STATUS_COLOR, STATUS_ICON } from "../theme";
+import { localToLngLat } from "../geo";
 import type { Status } from "../types";
+import { PATH_COLOR } from "./twin/MissionOverlay";
+
+type PathCollection = { type: "FeatureCollection"; features: { type: "Feature"; properties: { id: string }; geometry: { type: "LineString"; coordinates: [number, number][] } }[] };
+
+// MapLibre resolves its worker relative to its own module, which breaks once Vite bundles it.
+maplibregl.setWorkerUrl(workerUrl);
 
 // Key-free satellite imagery + terrain so the demo runs with zero setup.
 const STYLE: StyleSpecification = {
@@ -49,12 +57,16 @@ export function CorridorMap() {
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
   const markers = useRef<Record<string, HTMLElement>>({});
+  const paths = useRef<PathCollection>({ type: "FeatureCollection", features: [] });
+  const pathsReady = useRef(false);
 
   const assets = useTwin((s) => s.assets);
   const assetStatus = useTwin((s) => s.status.assets);
   const selectedAssetId = useTwin((s) => s.selectedAssetId);
   const selectAsset = useTwin((s) => s.selectAsset);
   const findings = useTwin((s) => s.findings);
+  const missions = useTwin((s) => s.missions);
+  const selectedMissionId = useTwin((s) => s.selectedMissionId);
 
   useEffect(() => {
     if (!container.current || assets.length === 0) return;
@@ -70,6 +82,22 @@ export function CorridorMap() {
       maxPitch: 80,
     });
     m.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), "top-right");
+    m.on("load", () => {
+      m.addSource("mission-paths", { type: "geojson", data: paths.current });
+      m.addLayer({
+        id: "mission-paths-glow",
+        type: "line",
+        source: "mission-paths",
+        paint: { "line-color": PATH_COLOR, "line-width": 10, "line-opacity": 0.25, "line-blur": 4 },
+      });
+      m.addLayer({
+        id: "mission-paths",
+        type: "line",
+        source: "mission-paths",
+        paint: { "line-color": PATH_COLOR, "line-width": 2.5 },
+      });
+      pathsReady.current = true;
+    });
     map.current = m;
 
     for (const a of assets) {
@@ -85,6 +113,7 @@ export function CorridorMap() {
     }
 
     return () => {
+      pathsReady.current = false;
       m.remove();
       map.current = null;
       markers.current = {};
@@ -99,6 +128,30 @@ export function CorridorMap() {
     }
   }, [assetStatus, selectedAssetId, findings]);
 
+  // Latest completed mission per asset, drawn as a ground-projected flight line.
+  useEffect(() => {
+    const m = map.current;
+    if (!m) return;
+    const latest = new Map<string, (typeof missions)[number]>();
+    for (const ms of missions) if (ms.status === "done" && ms.path) latest.set(ms.asset_id, ms);
+    const data: PathCollection = {
+      type: "FeatureCollection",
+      features: [...latest.values()].flatMap((ms) => {
+        const asset = assets.find((a) => a.id === ms.asset_id);
+        if (!asset || !ms.path) return [];
+        return [
+          {
+            type: "Feature" as const,
+            properties: { id: ms.id },
+            geometry: { type: "LineString" as const, coordinates: ms.path.waypoints.map(([x, , z]) => localToLngLat(asset, x, z)) },
+          },
+        ];
+      }),
+    };
+    paths.current = data; // picked up by the load handler if the style isn't ready yet
+    if (pathsReady.current) (m.getSource("mission-paths") as maplibregl.GeoJSONSource).setData(data);
+  }, [missions, assets]);
+
   useEffect(() => {
     const asset = assets.find((a) => a.id === selectedAssetId);
     if (!asset || !map.current) return;
@@ -111,6 +164,17 @@ export function CorridorMap() {
       essential: true,
     });
   }, [selectedAssetId, assets]);
+
+  // Selecting a mission zooms the map onto its flight (after the asset fly-to so it wins).
+  useEffect(() => {
+    const ms = missions.find((m) => m.id === selectedMissionId);
+    const asset = ms && assets.find((a) => a.id === ms.asset_id);
+    if (!map.current || !ms?.path || !asset) return;
+    const b = new maplibregl.LngLatBounds();
+    ms.path.waypoints.forEach(([x, , z]) => b.extend(localToLngLat(asset, x, z)));
+    map.current.fitBounds(b, { padding: 80, maxZoom: 19, pitch: 55, bearing: asset.heading_deg, duration: 2000 });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only re-fit when the selection changes
+  }, [selectedMissionId]);
 
   return <div ref={container} className="h-full w-full" />;
 }
