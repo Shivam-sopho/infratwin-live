@@ -481,20 +481,36 @@ def list_notes():
     return [n.model_dump() for n in notes.all()]
 
 
+def _snapshot() -> dict:
+    return {
+        **sim.snapshot(),
+        "findings": [f.model_dump() for f in findings.all()],
+        "triages": twin.snapshot(),
+        "missions": planner.snapshot(),
+        "notes": [n.model_dump() for n in notes.all()],
+        "screens": screener.snapshot(),
+        "lifts": [x.model_dump() for x in lifts.all()],
+    }
+
+
+@app.post("/api/demo/reset")
+async def demo_reset():
+    """Clear live state (anomalies, alerts, triages, screens, missions) for a clean demo take.
+
+    Pinned findings, notes, lifts and forecasts are kept: they are the inspection record.
+    """
+    sim.reset(clear_history=True)
+    twin.reset()
+    screener.screens.clear()
+    planner.missions.clear()
+    await sim.broadcast(_snapshot())
+    return {"ok": True}
+
+
 @app.websocket("/ws/telemetry")
 async def telemetry(ws: WebSocket):
     await ws.accept()
-    await ws.send_json(
-        {
-            **sim.snapshot(),
-            "findings": [f.model_dump() for f in findings.all()],
-            "triages": twin.snapshot(),
-            "missions": planner.snapshot(),
-            "notes": [n.model_dump() for n in notes.all()],
-            "screens": screener.snapshot(),
-            "lifts": [x.model_dump() for x in lifts.all()],
-        }
-    )
+    await ws.send_json(_snapshot())
     sim.clients.add(ws)
     try:
         while True:

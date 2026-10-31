@@ -80,6 +80,10 @@ class CognitiveTwin:
         self._last_by_component: dict[str, float] = {}
         self._tasks: set[asyncio.Task] = set()
 
+    def reset(self) -> None:
+        self.triages.clear()
+        self._last_by_component.clear()
+
     # --- context ------------------------------------------------------------
 
     def context(self, alert: Alert) -> dict:

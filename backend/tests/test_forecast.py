@@ -46,6 +46,7 @@ def test_reason_then_render_and_cache(client):
     assert calls["edit"] == [("Widen the crack to ~1 mm with rust staining.", "data:image/jpeg;base64,AAAA")]
     ctx = calls["respond"][0]["input"]
     assert "2 years" in ctx["scenario"] and ctx["host_component"]["name"] == "Pier 4" and "thumbnail" not in ctx["finding"]
+    assert "data:image" not in json.dumps(ctx)
     assert calls["respond"][0]["text"]["format"]["strict"] is True
 
     img = c.get(fc["image_url"])

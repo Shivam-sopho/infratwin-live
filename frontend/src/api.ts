@@ -27,6 +27,7 @@ export const api = {
       body: JSON.stringify({ component_id }),
     }).then(json),
   resetSim: () => fetch("/api/sim/reset", { method: "POST" }).then(json),
+  demoReset: () => fetch("/api/demo/reset", { method: "POST" }).then(json),
   vocabulary: () => fetch("/api/inspect/vocabulary").then(json<Concept[]>),
   segment: (file: File, concepts: Concept[], componentId?: string) => {
     const body = new FormData();

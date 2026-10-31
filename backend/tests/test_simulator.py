@@ -24,3 +24,25 @@ def test_anomaly_escalates_to_critical_and_alerts():
     assert status["assets"]["B07"] == "critical"
     assert status["components"]["B07.P3"] != "critical"
     assert any(a.component_id == "B07.P4" and a.level == "critical" for a in alerts)
+
+
+def test_demo_reset_endpoint(monkeypatch):
+    from fastapi.testclient import TestClient
+
+    from app import main
+
+    sent = []
+
+    async def capture(msg):
+        sent.append(msg)
+
+    monkeypatch.setattr(main.sim, "broadcast", capture)
+    main.sim.inject_anomaly("B07.P4")
+    main.sim._anomalies["B07.P4"] = time.time() - 60
+    main.sim.step()
+    assert main.sim.alerts and main.sim.status()["components"]["B07.P4"] == "critical"
+
+    assert TestClient(main.app).post("/api/demo/reset").json() == {"ok": True}
+    assert not main.sim.alerts and not main.sim._anomalies and not main.twin.triages
+    assert main.sim.status()["assets"]["B07"] == "nominal"
+    assert sent[-1]["type"] == "snapshot" and sent[-1]["alerts"] == []

@@ -153,8 +153,16 @@ export function CorridorMap() {
   }, [missions, assets]);
 
   useEffect(() => {
+    if (!map.current) return;
+    if (selectedAssetId === null && assets.length) {
+      // Back to the corridor overview.
+      const b = new maplibregl.LngLatBounds();
+      assets.forEach((a) => b.extend([a.lng, a.lat]));
+      map.current.fitBounds(b, { padding: 80, pitch: 50, bearing: 0, duration: 2000 });
+      return;
+    }
     const asset = assets.find((a) => a.id === selectedAssetId);
-    if (!asset || !map.current) return;
+    if (!asset) return;
     map.current.flyTo({
       center: [asset.lng, asset.lat],
       zoom: 15.5,

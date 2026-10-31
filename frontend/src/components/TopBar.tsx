@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
 import { useTwin } from "../store";
+import { DemoGuide } from "./DemoGuide";
 import { VoiceButton } from "./VoiceButton";
 
 const DEMO_COMPONENT = "B07.P4";
@@ -49,9 +50,10 @@ export function TopBar() {
         >
           Simulate Pier 4 event
         </button>
-        <button onClick={() => api.resetSim()} className="rounded-md border border-line px-2.5 py-1 text-xs text-ink-2 hover:text-ink">
+        <button onClick={() => api.demoReset()} className="rounded-md border border-line px-2.5 py-1 text-xs text-ink-2 hover:text-ink" title="Clear anomalies, alerts, assessments and missions (pinned findings are kept)">
           Reset
         </button>
+        <DemoGuide />
       </div>
     </header>
   );

@@ -98,6 +98,15 @@ def test_wonder_tool_loop(monkeypatch):
     assert m.baseline.coverage <= 0.4
 
 
+def test_mission_context_has_no_image_payloads():
+    p = _planner([])
+    f = p.findings()[0].model_copy(update={"mask_png": "data:image/png;base64,QUFB", "thumbnail_mask_png": "data:image/png;base64,QUFB"})
+    p.findings = lambda: [f]
+    m = missions_mod.Mission(id="MS-1", t=0, asset_id="B07", component_id="B07.P4", finding_id=f.id, model="x", status="running")
+    ctx = json.dumps(p.context(m))
+    assert "data:image" not in ctx and "concrete crack" in ctx
+
+
 def test_mission_without_key_uses_algorithm_only(monkeypatch):
     monkeypatch.setattr(missions_mod.meta, "configured", False)
     sent = []

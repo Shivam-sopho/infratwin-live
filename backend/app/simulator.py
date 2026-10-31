@@ -60,8 +60,12 @@ class Simulator:
     def inject_anomaly(self, component_id: str) -> None:
         self._anomalies[component_id] = time.time()
 
-    def reset(self) -> None:
+    def reset(self, clear_history: bool = False) -> None:
+        """Stop injected anomalies; with clear_history also forget alerts and return every sensor to nominal."""
         self._anomalies.clear()
+        if clear_history:
+            self.alerts.clear()
+            self.sensor_status = {sid: "nominal" for sid in self.sensors}
 
     # --- sampling ----------------------------------------------------------
 

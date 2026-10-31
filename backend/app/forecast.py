@@ -84,7 +84,7 @@ async def plan(finding: Finding, scenario: Scenario, context: dict) -> ForecastP
         json.dumps(
             {
                 "scenario": SCENARIOS[scenario],
-                "finding": finding.model_dump(exclude={"thumbnail", "bbox_uv"}),
+                "finding": finding.for_prompt(exclude={"bbox_uv"}),
                 **context,
             }
         ),

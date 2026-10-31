@@ -52,10 +52,17 @@ class FindingIn(BaseModel):
         return self
 
 
+IMAGE_FIELDS = {"thumbnail", "mask_png", "thumbnail_mask_png"}
+
+
 class Finding(FindingIn):
     id: str
     t: float
     asset_id: str
+
+    def for_prompt(self, exclude: set[str] = frozenset()) -> dict:
+        """Serialisable view for model prompts: never ship image payloads as tokens."""
+        return self.model_dump(exclude=IMAGE_FIELDS | set(exclude))
 
 
 class FindingStore:

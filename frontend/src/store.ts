@@ -77,7 +77,7 @@ export const useTwin = create<TwinState>((set, get) => ({
         for (const { readings } of msg.history) {
           for (const [id, v] of Object.entries(readings)) (history[id] ??= []).push(v);
         }
-        set({ history, alerts: [...msg.alerts].reverse(), status: msg.status, findings: msg.findings, triages: msg.triages, missions: msg.missions, notes: msg.notes, screens: Object.fromEntries(msg.screens.map((x) => [x.alert_id, x])),
+        set({ history, alerts: [...msg.alerts].reverse(), status: msg.status, selectedMissionId: null, findings: msg.findings, triages: msg.triages, missions: msg.missions, notes: msg.notes, screens: Object.fromEntries(msg.screens.map((x) => [x.alert_id, x])),
           lifts: Object.fromEntries(msg.lifts.map((x) => [x.finding_id, x])),
         });
         break;

@@ -198,7 +198,7 @@ class MissionPlanner:
                 "kind": comp.kind,
                 "face": "front (+z)",
                 "region_uv": uv,
-                "finding": f.model_dump(exclude={"thumbnail"}) if f else None,
+                "finding": f.for_prompt() if f else None,
             },
             "asset": {"name": asset.name, "type": asset.type, "description": asset.description},
             "twin_graph": {
