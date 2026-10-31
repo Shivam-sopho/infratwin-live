@@ -1,4 +1,4 @@
-import type { Asset, Concept, Finding, FindingIn, SegmentationReport, VideoReport, VoiceResult } from "./types";
+import type { Asset, Concept, Finding, FindingIn, Forecast, Scenario, SegmentationReport, VideoReport, VoiceResult } from "./types";
 
 async function json<T>(res: Response): Promise<T> {
   if (!res.ok) {
@@ -63,5 +63,12 @@ export const api = {
     if (selectedComponentId) body.append("selected_component_id", selectedComponentId);
     return fetch("/api/voice", { method: "POST", body }).then(json<VoiceResult>);
   },
+  forecasts: (findingId: string) => fetch(`/api/findings/${findingId}/forecasts`).then(json<Forecast[]>),
+  createForecast: (findingId: string, scenario: Scenario) =>
+    fetch(`/api/findings/${findingId}/forecasts`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ scenario }),
+    }).then(json<Forecast>),
   deleteFinding: (id: string) => fetch(`/api/findings/${id}`, { method: "DELETE" }).then(json),
 };

@@ -31,6 +31,7 @@ const fmtTime = (t: number) => new Date(t * 1000).toLocaleString([], { month: "s
 function FindingCard({ f }: { f: Finding }) {
   const selected = useTwin((s) => s.selectedFindingId === f.id);
   const selectFinding = useTwin((s) => s.selectFinding);
+  const setTimeTravel = useTwin((s) => s.setTimeTravel);
   return (
     <div
       onClick={() => selectFinding(f.id)}
@@ -41,6 +42,15 @@ function FindingCard({ f }: { f: Finding }) {
         <div className="flex items-baseline justify-between gap-1">
           <span className="truncate text-xs font-medium text-ink">{f.concept}</span>
           <span className="flex shrink-0 items-center gap-2">
+            <button
+              className="text-[11px] text-accent hover:underline"
+              onClick={(e) => {
+                e.stopPropagation();
+                setTimeTravel(f.id);
+              }}
+            >
+              Time-travel
+            </button>
             <button
               className="text-[11px] text-accent hover:underline"
               onClick={(e) => {

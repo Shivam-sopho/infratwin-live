@@ -8,12 +8,14 @@ from pathlib import Path
 import av
 from fastapi import FastAPI, Form, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from PIL import Image, UnidentifiedImageError
 from pydantic import BaseModel, TypeAdapter, ValidationError
 
 from .config import settings
 from .corridor import build_corridor
 from .findings import Finding, FindingIn, FindingStore
+from .forecast import Forecast, ForecastStore, Scenario, render as render_forecast
 from .metrology import ScaleRef, scale_ref_for
 from .missions import MissionPlanner
 from .meta_client import MUSE_SPARK, MetaAPIError, meta
@@ -29,6 +31,7 @@ sim = Simulator(ASSETS)
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 findings = FindingStore(DATA_DIR / "findings.json")
 notes = NoteStore(DATA_DIR / "notes.json")
+forecasts = ForecastStore(DATA_DIR / "forecasts")
 ASSET_OF_COMPONENT = {c.id: a.id for a in ASSETS for c in a.components}
 twin = CognitiveTwin(sim, lambda: findings.all(), auto=settings.triage_auto)
 sim.alert_listeners.append(twin.on_alert)
@@ -200,6 +203,50 @@ async def add_findings(items: list[FindingIn]):
     added = findings.add(items, ASSET_OF_COMPONENT)
     await sim.broadcast({"type": "findings", "added": [f.model_dump() for f in added], "removed": []})
     return added
+
+
+class ForecastRequest(BaseModel):
+    scenario: Scenario
+
+
+def _finding(finding_id: str) -> Finding:
+    f = next((x for x in findings.all() if x.id == finding_id), None)
+    if f is None:
+        raise HTTPException(404, f"Unknown finding {finding_id}")
+    return f
+
+
+@app.get("/api/findings/{finding_id}/forecasts", response_model=list[Forecast])
+def list_forecasts(finding_id: str):
+    return forecasts.list(_finding(finding_id).id)
+
+
+@app.post("/api/findings/{finding_id}/forecasts", response_model=Forecast)
+async def create_forecast(finding_id: str, req: ForecastRequest):
+    """Reason-before-render time-travel preview (Muse Spark narrative + Muse Image edit); cached per scenario."""
+    f = _finding(finding_id)
+    if not meta.configured and forecasts.get(f.id, req.scenario) is None:
+        raise HTTPException(503, "MODEL_API_KEY is not set")
+    comp = sim.components[f.component_id]
+    latest = sim.history[-1][1] if sim.history else {}
+    context = {
+        "host_component": {"name": comp.name, "kind": comp.kind},
+        "asset": sim.assets[comp.asset_id].description,
+        "environment": {sim.sensors[s].label: latest.get(s) for c in sim.assets[comp.asset_id].components if c.kind == "environment" for s in c.sensor_ids},
+        **_mission_context(comp.id),
+    }
+    try:
+        return await render_forecast(forecasts, f, req.scenario, context)
+    except (MetaAPIError, ValidationError) as e:
+        raise HTTPException(502, f"Forecast failed: {e}")
+
+
+@app.get("/api/findings/{finding_id}/forecasts/{scenario}.jpg")
+def forecast_image(finding_id: str, scenario: str):
+    path = forecasts.image_path(finding_id, scenario)
+    if path is None:
+        raise HTTPException(404, "No forecast rendered yet")
+    return FileResponse(path, media_type="image/jpeg")
 
 
 @app.delete("/api/findings/{finding_id}")

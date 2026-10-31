@@ -280,3 +280,15 @@ export interface VoiceResult {
   audio_ms: number | null;
   actions: VoiceActionResult[];
 }
+
+export type Scenario = "6mo" | "2y" | "repair";
+
+export interface Forecast {
+  finding_id: string;
+  scenario: Scenario;
+  t: number;
+  narrative: string;
+  image_prompt: string;
+  image_url: string;
+  models: string[];
+}

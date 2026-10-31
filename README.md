@@ -38,6 +38,10 @@ and Muse models for metrology, drone re-planning, voice logging and deterioratio
   defect vocabulary, feeds Muse Spark, which turns speech into actions. E.g. *"Pin this shear crack to Pier 4, run
   metric area calculation, and plan a drone re-scan around the drainage pipe"* → field note + measurements + Wonder
   mission + focus on Pier 4
+- **Time-travel previews (Muse Spark → Muse Image)**: for a pinned defect, drag the timeline to +6 months, +2 years
+  or *Repaired*. Muse Spark first reasons about the mechanism from the defect's type, measurements and environment,
+  and writes a precise edit prompt; Muse Image then edits the actual inspection photo. Results are cached and
+  labelled as illustrative visualisations, not predictions
 - **Cognitive Twin (Muse Spark)**: when a sensor goes critical, the twin hands Muse Spark the component's live traces,
   thresholds, neighbouring sensor states, recent alerts and pinned findings. Its reasoning streams into the panel,
   followed by a structured assessment: severity, causes, evidence, actions, and whether a visual audit is needed
@@ -71,6 +75,7 @@ backend/            FastAPI (Python 3.12, uv)
   app/uav_planner.py  Algorithm 2 view scoring (ray/AABB occlusion) + collision-checked flight paths
   app/missions.py     Muse Wonder mission planning with the planner as function tools
   app/voice.py        Voice Transcribe + Muse Spark intent parsing, field notes
+  app/forecast.py     reason-before-render time-travel previews (Muse Spark + Muse Image)
 frontend/           Vite + React 19 + TypeScript + Tailwind v4
   src/components/     CorridorMap, TwinViewer, InspectionPanel, Inspector, AlertsFeed, Sparkline
 modal_workers/      SAM 3D Objects / Body GPU services (coming)

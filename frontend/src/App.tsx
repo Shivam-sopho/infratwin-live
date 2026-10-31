@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { api } from "./api";
 import { SideFeed } from "./components/SideFeed";
+import { TimeTravel } from "./components/TimeTravel";
 import { CorridorMap } from "./components/CorridorMap";
 import { Inspector } from "./components/Inspector";
 import { TopBar } from "./components/TopBar";
@@ -31,6 +32,7 @@ export default function App() {
           <SideFeed />
         </aside>
       </main>
+      <TimeTravel />
     </div>
   );
 }

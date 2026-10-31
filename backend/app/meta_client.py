@@ -4,6 +4,7 @@ Feature modules (SAM 3.1 segmentation, Muse Image, Voice Transcribe, Wonder plan
 build on this rather than talking HTTP directly.
 """
 
+import base64
 import json
 from collections.abc import AsyncIterator
 
@@ -82,6 +83,25 @@ class MetaClient:
         if r.status_code >= 400:
             raise MetaAPIError(f"{r.status_code}: {r.text[:500]}")
         return r.json()
+
+    async def image_edit(self, prompt: str, image_url: str, output_format: str = "jpeg") -> bytes:
+        """POST /images/edits with one input image (data URL); returns the edited image bytes."""
+        if not self.configured:
+            raise MetaAPIError("MODEL_API_KEY is not set")
+        r = await self._http.post(
+            "/images/edits",
+            json={
+                "model": MUSE_IMAGE,
+                "prompt": prompt,
+                "images": [{"image_url": image_url}],
+                "response_format": "b64_json",
+                "output_format": output_format,
+            },
+            timeout=180,
+        )
+        if r.status_code >= 400:
+            raise MetaAPIError(f"{r.status_code}: {r.text[:500]}")
+        return base64.b64decode(r.json()["data"][0]["b64_json"])
 
     async def delete_file(self, file_id: str) -> None:
         await self._http.delete(f"/files/{file_id}")

@@ -16,6 +16,8 @@ interface TwinState {
   missions: Mission[];
   selectedMissionId: string | null;
   notes: Note[];
+  timeTravelFindingId: string | null;
+  setTimeTravel: (id: string | null) => void;
   connected: boolean;
   selectedAssetId: string | null;
   selectedComponentId: string | null;
@@ -46,6 +48,8 @@ export const useTwin = create<TwinState>((set, get) => ({
   missions: [],
   selectedMissionId: null,
   notes: [],
+  timeTravelFindingId: null,
+  setTimeTravel: (timeTravelFindingId) => set({ timeTravelFindingId }),
   connected: false,
   selectedAssetId: null,
   selectedComponentId: null,

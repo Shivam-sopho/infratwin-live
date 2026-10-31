@@ -12,6 +12,7 @@ const COST_PER_FRAME = 0.0002;
 const VIDEO_FPS = 5;
 const VIDEO_MAX_S = 20;
 const MIN_BILLED_FRAMES = 50;
+const PIN_CROP_PX = 512; // large enough for Muse Image time-travel edits
 
 type Run = { kind: "image"; report: SegmentationReport } | { kind: "video"; report: VideoReport };
 
@@ -197,9 +198,9 @@ export function InspectionPanel() {
         let thumbnail: string;
         if (run.kind === "video" && video) {
           await seek(video, (r.bestFrame ?? 0) / run.report.fps + 0.01);
-          thumbnail = cropThumbnail(video, r.box, W, H);
+          thumbnail = cropThumbnail(video, r.box, W, H, PIN_CROP_PX);
         } else {
-          thumbnail = cropThumbnail(imgRef.current!, r.box, W, H);
+          thumbnail = cropThumbnail(imgRef.current!, r.box, W, H, PIN_CROP_PX);
         }
         items.push({
           component_id: target,
