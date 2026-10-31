@@ -1,4 +1,4 @@
-import type { Asset, Concept, Finding, FindingIn, SegmentationReport, VideoReport } from "./types";
+import type { Asset, Concept, Finding, FindingIn, SegmentationReport, VideoReport, VoiceResult } from "./types";
 
 async function json<T>(res: Response): Promise<T> {
   if (!res.ok) {
@@ -57,5 +57,11 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ component_id, finding_id: finding_id ?? null }),
     }).then(json<{ id: string }>),
+  voice: (wav: Blob, selectedComponentId: string | null) => {
+    const body = new FormData();
+    body.append("file", wav, "command.wav");
+    if (selectedComponentId) body.append("selected_component_id", selectedComponentId);
+    return fetch("/api/voice", { method: "POST", body }).then(json<VoiceResult>);
+  },
   deleteFinding: (id: string) => fetch(`/api/findings/${id}`, { method: "DELETE" }).then(json),
 };

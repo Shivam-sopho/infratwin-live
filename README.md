@@ -34,6 +34,10 @@ and Muse models for metrology, drone re-planning, voice logging and deterioratio
   angle, and plans collision-checked flights. Muse Wonder calls these as tools, compares standoffs, and returns a
   mission plan. The twin and the map show candidate poses, the chosen camera and the flight path (e.g. a crack behind
   the downpipe: 30% visible square-on → 90% from yaw −30°)
+- **Voice field commands**: push-to-talk in the browser. Muse Voice Transcribe, biased with the twin's component and
+  defect vocabulary, feeds Muse Spark, which turns speech into actions. E.g. *"Pin this shear crack to Pier 4, run
+  metric area calculation, and plan a drone re-scan around the drainage pipe"* → field note + measurements + Wonder
+  mission + focus on Pier 4
 - **Cognitive Twin (Muse Spark)**: when a sensor goes critical, the twin hands Muse Spark the component's live traces,
   thresholds, neighbouring sensor states, recent alerts and pinned findings. Its reasoning streams into the panel,
   followed by a structured assessment: severity, causes, evidence, actions, and whether a visual audit is needed
@@ -66,6 +70,7 @@ backend/            FastAPI (Python 3.12, uv)
   app/metrology.py    host-scale defect measurement + normal-gradient plane raycasting
   app/uav_planner.py  Algorithm 2 view scoring (ray/AABB occlusion) + collision-checked flight paths
   app/missions.py     Muse Wonder mission planning with the planner as function tools
+  app/voice.py        Voice Transcribe + Muse Spark intent parsing, field notes
 frontend/           Vite + React 19 + TypeScript + Tailwind v4
   src/components/     CorridorMap, TwinViewer, InspectionPanel, Inspector, AlertsFeed, Sparkline
 modal_workers/      SAM 3D Objects / Body GPU services (coming)

@@ -89,6 +89,7 @@ export function Inspector() {
   const sensors = useTwin((s) => s.sensors);
   const selectComponent = useTwin((s) => s.selectComponent);
   const findings = useTwin((s) => s.findings);
+  const notes = useTwin((s) => s.notes);
 
   const asset = assets.find((a) => a.id === selectedAssetId) ?? assets[0];
   if (!asset) return null;
@@ -145,6 +146,22 @@ export function Inspector() {
             <p className="text-xs text-ink-3">None pinned. Run SAM 3.1 in the Inspection tab and pin defects here.</p>
           ) : (
             compFindings.map((f) => <FindingCard key={f.id} f={f} />)
+          )}
+          {notes.some((n) => n.component_id === comp.id) && (
+            <>
+              <div className="mt-1 text-[11px] uppercase tracking-wider text-ink-3">Field notes</div>
+              {notes
+                .filter((n) => n.component_id === comp.id)
+                .reverse()
+                .map((n) => (
+                  <div key={n.id} className="rounded-md border border-line bg-bg/60 px-2 py-1.5 text-xs" title={`Heard: “${n.transcript}”`}>
+                    <div className="text-ink">{n.text}</div>
+                    <div className="text-[11px] text-ink-3">
+                      {n.id} · voice · {fmtTime(n.t)}
+                    </div>
+                  </div>
+                ))}
+            </>
           )}
         </div>
       ) : (

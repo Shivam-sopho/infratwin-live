@@ -67,6 +67,22 @@ class MetaClient:
             raise MetaAPIError(f"{r.status_code}: {r.text[:500]}")
         return r.json()["id"]
 
+    async def transcribe(self, wav: bytes, settings: dict) -> dict:
+        """POST /asr/transcribe (multipart: `request` JSON + `audio` WAV); returns TranscribeResponse."""
+        if not self.configured:
+            raise MetaAPIError("MODEL_API_KEY is not set")
+        r = await self._http.post(
+            "/asr/transcribe",
+            files={
+                "request": (None, json.dumps(settings), "application/json"),
+                "audio": ("audio.wav", wav, "audio/wav"),
+            },
+            headers={"Accept": "application/json"},
+        )
+        if r.status_code >= 400:
+            raise MetaAPIError(f"{r.status_code}: {r.text[:500]}")
+        return r.json()
+
     async def delete_file(self, file_id: str) -> None:
         await self._http.delete(f"/files/{file_id}")
 

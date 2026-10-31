@@ -13,7 +13,7 @@ Build order: each step ships a working, demoable increment on top of the foundat
 | 6 | Defect metrology: host-element scale (area, perimeter, crack length/width) ✅; normal-gradient plane raycasting (true area + inclination) implemented & tested, awaits SAM 3D depth; Muse Spark Open + Modal Sandbox execution ⬜ | Muse Spark Open | 🟡 |
 | 7 | Cognitive Twin: Muse Spark triage of critical alerts with streamed reasoning + structured assessment (Glimmer first-pass pending hosting) | `muse-spark-1.3` / Glimmer | ✅ Spark · ⬜ Glimmer |
 | 8 | Occlusion-adaptive UAV re-planner: Algorithm 2 view scoring + collision-checked paths as tools for Muse Wonder; 3D flight on twin + map | `muse-wonder-1.0` | ✅ |
-| 9 | Voice field commands → tool calls / geo-pinned notes | `muse-voice-transcribe-1.0` | ⬜ |
+| 9 | Voice field commands: push-to-talk → Voice Transcribe (twin vocabulary as keywords) → Muse Spark intents → notes, measurements, triage, drone re-scan, navigation | `muse-voice-transcribe-1.0` + `muse-spark-1.3` | ✅ |
 | 10 | Time-travel deterioration + repair preview | `muse-image-1.0` | ⬜ |
 | 11 | Demo script polish, README, 2-min video | — | ⬜ |
 
@@ -39,4 +39,6 @@ Build order: each step ships a working, demoable increment on top of the foundat
   `function_call_output` items with `previous_response_id` (instructions must be resent each turn).
   `tool_choice` only supports `"auto"`, so the app handles both tool calls and final answers.
 - **Muse Image**: `POST /images/generations` and `/images/edits` (`images: [{image_url}]`), $0.01/image.
-- **Voice**: `POST /asr/transcribe` multipart (`request` JSON + `audio` WAV, ≤10 min). Browser audio must be converted to WAV.
+- **Voice**: `POST /asr/transcribe` multipart (`request` JSON + `audio` WAV, ≤10 min); WAV must be mono 16-bit PCM at
+  16 or 24 kHz (browser: MediaRecorder → decodeAudioData → OfflineAudioContext resample → PCM16 encode). Response
+  `{sessionId, transcript, audioDurationMs, turns}`; `keywords` biases recognition toward twin vocabulary.

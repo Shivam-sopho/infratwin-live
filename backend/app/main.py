@@ -22,10 +22,13 @@ from .sam31 import DEFAULT_CONCEPTS, Concept, SegmentationReport, prepare_image,
 from .sam31_video import VideoReport, segment_video, transcode
 from .simulator import Simulator
 from .triage import CognitiveTwin, find_alert
+from .voice import ActionResult, NoteStore, VoiceResult, check_wav, interpret, transcribe, vocabulary
 
 ASSETS = build_corridor()
 sim = Simulator(ASSETS)
-findings = FindingStore(Path(__file__).resolve().parent.parent / "data" / "findings.json")
+DATA_DIR = Path(__file__).resolve().parent.parent / "data"
+findings = FindingStore(DATA_DIR / "findings.json")
+notes = NoteStore(DATA_DIR / "notes.json")
 ASSET_OF_COMPONENT = {c.id: a.id for a in ASSETS for c in a.components}
 twin = CognitiveTwin(sim, lambda: findings.all(), auto=settings.triage_auto)
 sim.alert_listeners.append(twin.on_alert)
@@ -242,6 +245,97 @@ async def create_mission(req: MissionRequest):
     return {"id": m.id}
 
 
+MAX_VOICE_BYTES = 8 * 1024 * 1024
+
+
+@app.post("/api/voice", response_model=VoiceResult)
+async def voice_command(file: UploadFile, selected_component_id: str | None = Form(None)):
+    """Push-to-talk: WAV → Muse Voice Transcribe → Muse Spark intent → twin actions."""
+    if not meta.configured:
+        raise HTTPException(503, "MODEL_API_KEY is not set")
+    wav = await file.read(MAX_VOICE_BYTES + 1)
+    if len(wav) > MAX_VOICE_BYTES:
+        raise HTTPException(413, "Audio larger than 8 MB")
+    try:
+        check_wav(wav)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    try:
+        tr = await transcribe(wav, vocabulary([c.name for c in sim.components.values()]))
+    except MetaAPIError as e:
+        raise HTTPException(502, f"Transcription failed: {e}")
+    transcript = (tr.get("transcript") or "").strip()
+    if not transcript:
+        return VoiceResult(transcript="", reply="I didn't catch anything; try again.", audio_ms=tr.get("audioDurationMs"), actions=[])
+
+    context = {
+        "selected_component_id": selected_component_id,
+        "components": [{"id": c.id, "name": c.name, "asset": sim.assets[c.asset_id].name} for c in sim.components.values()],
+    }
+    try:
+        intent = await interpret(transcript, context)
+    except (MetaAPIError, ValidationError) as e:
+        raise HTTPException(502, f"Could not interpret command: {e}")
+    results = [await _run_voice_action(a, transcript) for a in intent.actions]
+    return VoiceResult(transcript=transcript, reply=intent.reply, audio_ms=tr.get("audioDurationMs"), actions=results)
+
+
+async def _run_voice_action(a, transcript: str) -> ActionResult:
+    out = ActionResult(**a.model_dump(), status="done")
+    comp = sim.components.get(a.component_id)
+    if a.type == "none":
+        out.status = "skipped"
+        return out
+    if a.type != "simulate_event" and comp is None:
+        out.status, out.detail = "error", f"unknown component '{a.component_id}'"
+        return out
+    try:
+        if a.type in ("select_component", "open_inspection"):
+            out.status = "client"  # UI navigation happens in the browser
+        elif a.type == "add_note":
+            note = notes.add(comp.asset_id, comp.id, a.text or transcript, transcript)
+            await sim.broadcast({"type": "notes", "added": [note.model_dump()]})
+            out.detail = f"{note.id} on {comp.name}"
+        elif a.type == "measure":
+            measured = [f for f in findings.all() if f.component_id == comp.id and f.metrology]
+            out.detail = (
+                "; ".join(
+                    f"{f.id} {f.concept}: {f.metrology.area_m2:.4f} m²"
+                    + (f", L {f.metrology.length_m:.2f} m" if f.metrology.length_m is not None else "")
+                    + (f", w≤{f.metrology.max_width_mm:.1f} mm" if f.metrology.max_width_mm is not None else "")
+                    for f in measured
+                )
+                or f"No measured findings on {comp.name} yet: run an inspection with 'Captured at' set"
+            )
+            out.status = "done" if measured else "skipped"
+        elif a.type == "run_triage":
+            alert = next((x for x in reversed(sim.alerts) if x.component_id == comp.id), None)
+            if alert is None:
+                out.status, out.detail = "skipped", f"No alerts on {comp.name} to assess"
+            else:
+                twin.start(alert)
+                out.detail = f"assessing {alert.id}"
+        elif a.type == "plan_rescan":
+            if comp.geometry is None or comp.geometry.shape not in ("box", "cylinder"):
+                out.status, out.detail = "skipped", f"{comp.name} has no planar face to plan against"
+            else:
+                latest = next((f for f in reversed(findings.all()) if f.component_id == comp.id), None)
+                m = planner.start(comp.id, latest.id if latest else None)
+                out.detail = f"{m.id}" + (f" targeting {latest.id}" if latest else "")
+        elif a.type == "simulate_event":
+            target = comp.id if comp else "B07.P4"
+            sim.inject_anomaly(target)
+            out.detail = f"anomaly injected on {sim.components[target].name}"
+    except Exception as e:  # one failed action must not drop the others
+        out.status, out.detail = "error", f"{type(e).__name__}: {e}"
+    return out
+
+
+@app.get("/api/notes")
+def list_notes():
+    return [n.model_dump() for n in notes.all()]
+
+
 @app.websocket("/ws/telemetry")
 async def telemetry(ws: WebSocket):
     await ws.accept()
@@ -251,6 +345,7 @@ async def telemetry(ws: WebSocket):
             "findings": [f.model_dump() for f in findings.all()],
             "triages": twin.snapshot(),
             "missions": planner.snapshot(),
+            "notes": [n.model_dump() for n in notes.all()],
         }
     )
     sim.clients.add(ws)

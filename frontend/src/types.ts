@@ -107,6 +107,7 @@ export type ServerMessage =
       findings: Finding[];
       triages: Triage[];
       missions: Mission[];
+      notes: Note[];
     }
   | { type: "tick"; t: number; readings: Record<string, number>; status: StatusSnapshot }
   | { type: "alert"; alert: Alert }
@@ -114,7 +115,8 @@ export type ServerMessage =
   | { type: "triage"; triage: Triage }
   | { type: "triage_delta"; id: string; delta: string }
   | { type: "mission"; mission: Mission }
-  | { type: "mission_delta"; id: string; delta: string };
+  | { type: "mission_delta"; id: string; delta: string }
+  | { type: "notes"; added: Note[] };
 
 export type ConceptCategory = "structural" | "defect";
 
@@ -252,4 +254,29 @@ export interface Mission {
   note: string | null;
   error: string | null;
   ms: number | null;
+}
+
+export interface Note {
+  id: string;
+  t: number;
+  asset_id: string;
+  component_id: string;
+  text: string;
+  transcript: string;
+  source: "voice";
+}
+
+export interface VoiceActionResult {
+  type: "select_component" | "add_note" | "measure" | "run_triage" | "plan_rescan" | "open_inspection" | "simulate_event" | "none";
+  component_id: string;
+  text: string;
+  status: "done" | "client" | "skipped" | "error";
+  detail: string;
+}
+
+export interface VoiceResult {
+  transcript: string;
+  reply: string;
+  audio_ms: number | null;
+  actions: VoiceActionResult[];
 }

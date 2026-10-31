@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { Alert, Asset, Component, Finding, Mission, Sensor, ServerMessage, StatusSnapshot, Triage } from "./types";
+import type { Alert, Asset, Component, Finding, Mission, Note, Sensor, ServerMessage, StatusSnapshot, Triage } from "./types";
 
 const HISTORY_LEN = 240;
 const EMPTY_STATUS: StatusSnapshot = { sensors: {}, components: {}, assets: {} };
@@ -15,6 +15,7 @@ interface TwinState {
   triages: Triage[];
   missions: Mission[];
   selectedMissionId: string | null;
+  notes: Note[];
   connected: boolean;
   selectedAssetId: string | null;
   selectedComponentId: string | null;
@@ -44,6 +45,7 @@ export const useTwin = create<TwinState>((set, get) => ({
   triages: [],
   missions: [],
   selectedMissionId: null,
+  notes: [],
   connected: false,
   selectedAssetId: null,
   selectedComponentId: null,
@@ -67,7 +69,7 @@ export const useTwin = create<TwinState>((set, get) => ({
         for (const { readings } of msg.history) {
           for (const [id, v] of Object.entries(readings)) (history[id] ??= []).push(v);
         }
-        set({ history, alerts: [...msg.alerts].reverse(), status: msg.status, findings: msg.findings, triages: msg.triages, missions: msg.missions });
+        set({ history, alerts: [...msg.alerts].reverse(), status: msg.status, findings: msg.findings, triages: msg.triages, missions: msg.missions, notes: msg.notes });
         break;
       }
       case "tick": {
@@ -99,6 +101,11 @@ export const useTwin = create<TwinState>((set, get) => ({
           missions: isNew ? [...prev, msg.mission].slice(-20) : prev.map((m) => (m.id === msg.mission.id ? msg.mission : m)),
           ...(isNew ? { sideTab: "missions" as const, selectedMissionId: msg.mission.id } : {}),
         });
+        break;
+      }
+      case "notes": {
+        const known = new Set(get().notes.map((n) => n.id));
+        set({ notes: [...get().notes, ...msg.added.filter((n) => !known.has(n.id))] });
         break;
       }
       case "mission_delta":

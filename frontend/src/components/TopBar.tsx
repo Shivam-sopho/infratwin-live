@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
 import { useTwin } from "../store";
+import { VoiceButton } from "./VoiceButton";
 
 const DEMO_COMPONENT = "B07.P4";
 
@@ -30,6 +31,7 @@ export function TopBar() {
       <div className="ml-auto flex items-center gap-2">
         <Pill ok={connected} label={connected ? "Telemetry live" : "Telemetry offline"} />
         <Pill ok={metaReady} label={metaReady ? "Meta API key set" : "Meta API key missing"} />
+        <VoiceButton />
         <button
           onClick={() => api.injectAnomaly(DEMO_COMPONENT)}
           className="rounded-md border border-critical/60 px-2.5 py-1 text-xs text-ink hover:bg-critical/10"
