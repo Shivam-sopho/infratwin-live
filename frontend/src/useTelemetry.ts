@@ -14,8 +14,12 @@ export function useTelemetry() {
       ws = new WebSocket(`${proto}://${location.host}/ws/telemetry`);
       ws.onopen = () => setConnected(true);
       ws.onmessage = (e) => ingest(JSON.parse(e.data) as ServerMessage);
-      ws.onclose = () => {
+      ws.onclose = (e) => {
         setConnected(false);
+        if (e.code === 4401) {
+          useTwin.getState().setAuthRequired(true); // reconnect after login (page reload)
+          return;
+        }
         if (!closed) retry = setTimeout(connect, 2000);
       };
     };

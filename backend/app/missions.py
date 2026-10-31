@@ -18,6 +18,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict
 
 from .findings import Finding
+from .budget import COST, budget
 from .meta_client import MUSE_WONDER, meta
 from .models import Asset, Component
 from .uav_planner import (
@@ -248,6 +249,7 @@ class MissionPlanner:
                 m.note = "Muse Wonder unavailable (no MODEL_API_KEY): showing Algorithm 2's best viewpoint only."
                 m.chosen = m.candidates[:1]
             else:
+                budget.charge("wonder_mission", COST["wonder_mission"])
                 await self._wonder(m)
             if m.chosen:
                 m.path = await asyncio.to_thread(plan_flight, self.assets[m.asset_id], m.chosen)

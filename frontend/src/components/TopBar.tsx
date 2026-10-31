@@ -17,14 +17,25 @@ function Pill({ ok, label }: { ok: boolean; label: string }) {
 
 export function TopBar() {
   const connected = useTwin((s) => s.connected);
-  const [health, setHealth] = useState({ meta: false, glimmer: false, sparkOpen: false, modal: false });
+  const [health, setHealth] = useState({ meta: false, glimmer: false, sparkOpen: false, modal: false, spent: 0, cap: 0 });
 
   useEffect(() => {
-    api.health().then(
-      (h) =>
-        setHealth({ meta: h.meta_api_configured, glimmer: h.glimmer_configured, sparkOpen: h.spark_open_configured, modal: h.modal_configured }),
-      () => setHealth({ meta: false, glimmer: false, sparkOpen: false, modal: false }),
-    );
+    const load = () =>
+      api.health().then(
+        (h) =>
+          setHealth({
+            meta: h.meta_api_configured,
+            glimmer: h.glimmer_configured,
+            sparkOpen: h.spark_open_configured,
+            modal: h.modal_configured,
+            spent: h.budget.spent_usd,
+            cap: h.budget.cap_usd,
+          }),
+        () => undefined,
+      );
+    load();
+    const id = setInterval(load, 15000);
+    return () => clearInterval(id);
   }, [connected]);
   const metaReady = health.meta;
 
@@ -43,6 +54,14 @@ export function TopBar() {
             label={`Glimmer ${health.glimmer ? "✓" : "–"} · Spark Open ${health.sparkOpen ? "✓" : "–"} · Modal ${health.modal ? "✓" : "–"}`}
           />
         </span>
+        {health.cap > 0 && (
+          <span
+            className="hidden tabular-nums text-xs text-ink-3 lg:inline"
+            title="Estimated model spend today (UTC) against the daily cap; paid calls are refused above the cap"
+          >
+            ${health.spent.toFixed(2)} / ${health.cap.toFixed(0)} today
+          </span>
+        )}
         <VoiceButton />
         <button
           onClick={() => api.injectAnomaly(DEMO_COMPONENT)}

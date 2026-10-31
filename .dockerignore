@@ -1,0 +1,12 @@
+# keep secrets, local data, datasets and build output out of the image
+.env
+.env.*
+.git
+**/node_modules
+**/.venv
+**/__pycache__
+**/.pytest_cache
+backend/data
+demo-media
+frontend/dist
+modal_workers

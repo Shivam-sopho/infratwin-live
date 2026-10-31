@@ -1,4 +1,8 @@
+from pathlib import Path
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+BACKEND_DIR = Path(__file__).resolve().parent.parent
 
 
 class Settings(BaseSettings):
@@ -32,6 +36,20 @@ class Settings(BaseSettings):
     triage_auto: bool = True
 
     cors_origins: list[str] = ["http://localhost:5173", "http://127.0.0.1:5173"]
+
+    # Storage (findings, notes, forecasts, lifts) and optional local sample images.
+    data_dir: Path = BACKEND_DIR / "data"
+    samples_dir: Path = BACKEND_DIR.parent / "demo-media" / "dacl10k"
+    # Built UI to serve from the API origin (production). Unset/missing in dev, where Vite serves it.
+    frontend_dist: Path = BACKEND_DIR.parent / "frontend" / "dist"
+
+    # Access control: when set, every API call and the telemetry socket require this token
+    # (browser: login sets an HttpOnly cookie; machines: Authorization: Bearer <token>).
+    app_access_token: str = ""
+    cookie_secure: bool = False  # set true behind HTTPS
+
+    # Spend guard for paid model calls (estimated USD per UTC day).
+    max_daily_usd: float = 5.0
 
 
 settings = Settings()

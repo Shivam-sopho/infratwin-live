@@ -19,6 +19,8 @@ interface TwinState {
   screens: Record<string, Screen>;
   lifts: Record<string, Lift>;
   timeTravelFindingId: string | null;
+  authRequired: boolean;
+  setAuthRequired: (v: boolean) => void;
   setTimeTravel: (id: string | null) => void;
   connected: boolean;
   selectedAssetId: string | null;
@@ -53,6 +55,8 @@ export const useTwin = create<TwinState>((set, get) => ({
   screens: {},
   lifts: {},
   timeTravelFindingId: null,
+  authRequired: false,
+  setAuthRequired: (authRequired) => set({ authRequired }),
   setTimeTravel: (timeTravelFindingId) => set({ timeTravelFindingId }),
   connected: false,
   selectedAssetId: null,

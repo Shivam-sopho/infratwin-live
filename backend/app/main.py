@@ -8,12 +8,15 @@ from pathlib import Path
 
 import av
 import httpx
-from fastapi import FastAPI, Form, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Form, HTTPException, Request, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 from PIL import Image, UnidentifiedImageError
 from pydantic import BaseModel, TypeAdapter, ValidationError
 
+from . import auth
+from .budget import COST, BudgetExceeded, budget
 from .config import settings
 from .corridor import build_corridor
 from .findings import Finding, FindingIn, FindingStore
@@ -35,8 +38,8 @@ from .voice import ActionResult, NoteStore, VoiceResult, check_wav, interpret, t
 
 ASSETS = build_corridor()
 sim = Simulator(ASSETS)
-DATA_DIR = Path(__file__).resolve().parent.parent / "data"
-SAMPLES_DIR = Path(__file__).resolve().parents[2] / "demo-media" / "dacl10k"  # local only, git-ignored
+DATA_DIR = settings.data_dir
+SAMPLES_DIR = settings.samples_dir  # local only, git-ignored
 findings = FindingStore(DATA_DIR / "findings.json")
 notes = NoteStore(DATA_DIR / "notes.json")
 forecasts = ForecastStore(DATA_DIR / "forecasts")
@@ -77,12 +80,41 @@ async def lifespan(_: FastAPI):
 
 
 app = FastAPI(title="InfraTwin-Live API", version="0.1.0", lifespan=lifespan)
+app.middleware("http")(auth.middleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
     allow_methods=["*"],
     allow_headers=["*"],
+    allow_credentials=True,
 )
+
+
+@app.exception_handler(BudgetExceeded)
+async def _budget_exceeded(_, exc: BudgetExceeded):
+    return JSONResponse({"detail": str(exc)}, status_code=429)
+
+
+@app.get("/api/auth/status")
+def auth_status(request: Request):
+    return {"required": auth.enabled(), "authenticated": auth.request_allowed(request) if not auth.enabled() else auth.valid(request.cookies.get(auth.COOKIE))}
+
+
+@app.post("/api/auth/login")
+def auth_login(req: auth.LoginRequest):
+    if auth.enabled() and not auth.valid(req.token):
+        raise HTTPException(401, "Invalid access token")
+    resp = JSONResponse({"ok": True})
+    if auth.enabled():
+        resp.set_cookie(auth.COOKIE, req.token, httponly=True, samesite="lax", secure=settings.cookie_secure, max_age=30 * 86400)
+    return resp
+
+
+@app.post("/api/auth/logout")
+def auth_logout():
+    resp = JSONResponse({"ok": True})
+    resp.delete_cookie(auth.COOKIE)
+    return resp
 
 
 @app.get("/api/health")
@@ -94,6 +126,8 @@ def health():
         "spark_open_configured": spark_open.configured,
         "modal_configured": modal_configured(),
         "sam3d": sam3d.configured(),
+        "auth_required": auth.enabled(),
+        "budget": budget.status(),
         "ws_clients": len(sim.clients),
     }
 
@@ -208,6 +242,7 @@ async def inspect_segment(file: UploadFile, concepts: str | None = Form(None), c
     except (UnidentifiedImageError, Image.DecompressionBombError, OSError):
         raise HTTPException(400, "Not a readable image")
 
+    budget.charge("sam31_image", COST["sam31_image_per_concept"] * len(concept_list))
     return await segment_image(image_url, width, height, concept_list, scale_ref)
 
 
@@ -231,6 +266,7 @@ async def inspect_segment_video(
             video = await asyncio.to_thread(transcode, src, dst)
         except (ValueError, av.FFmpegError, IndexError) as e:
             raise HTTPException(400, f"Not a readable video: {e}")
+        budget.charge("sam31_video", COST["sam31_video_per_frame"] * max(video.n_frames, 50) * len(concept_list))
         try:
             return await segment_video(dst, video, concept_list, scale_ref)
         except MetaAPIError as e:
@@ -282,6 +318,8 @@ async def create_forecast(finding_id: str, req: ForecastRequest):
         "environment": {sim.sensors[s].label: latest.get(s) for c in sim.assets[comp.asset_id].components if c.kind == "environment" for s in c.sensor_ids},
         **_mission_context(comp.id),
     }
+    if forecasts.get(f.id, req.scenario) is None:
+        budget.charge("forecast", COST["muse_image"] + COST["spark_call"])
     try:
         return await render_forecast(forecasts, f, req.scenario, context)
     except (MetaAPIError, ValidationError) as e:
@@ -296,6 +334,7 @@ async def lift_finding(finding_id: str):
         raise HTTPException(400, "Finding has no aligned mask to lift (re-pin it from the Inspection tab)")
     if not sam3d.configured()["objects"]:
         raise HTTPException(503, "SAM 3D Objects is not deployed (set SAM3D_OBJECTS_URL)")
+    budget.charge("sam3d", COST["sam3d_call"])
     try:
         out = await sam3d.reconstruct(f.thumbnail, f.thumbnail_mask_png)
     except (sam3d.Sam3DError, httpx.HTTPError) as e:
@@ -337,6 +376,7 @@ async def inspect_workzone(
     except (UnidentifiedImageError, Image.DecompressionBombError, OSError):
         raise HTTPException(400, "Not a readable image")
     mask = await asyncio.to_thread(sam3d.full_frame_mask, width, height, bounds, defect_mask_png)
+    budget.charge("sam3d", 2 * COST["sam3d_call"])
     try:
         return await sam3d.work_zone(base64.b64decode(image_url.split(",", 1)[1]), mask, max(0.5, min(radius_m, 20.0)))
     except (sam3d.Sam3DError, httpx.HTTPError) as e:
@@ -437,6 +477,7 @@ async def voice_command(file: UploadFile, selected_component_id: str | None = Fo
     except MetaAPIError as e:
         raise HTTPException(502, f"Transcription failed: {e}")
     transcript = (tr.get("transcript") or "").strip()
+    budget.charge("voice_command", COST["voice_command"])
     if not transcript:
         return VoiceResult(transcript="", reply="I didn't catch anything; try again.", audio_ms=tr.get("audioDurationMs"), actions=[])
 
@@ -537,6 +578,9 @@ async def demo_reset():
 @app.websocket("/ws/telemetry")
 async def telemetry(ws: WebSocket):
     await ws.accept()
+    if not auth.websocket_allowed(ws):
+        await ws.close(code=4401)  # app-level code so the browser can prompt for login
+        return
     await ws.send_json(_snapshot())
     sim.clients.add(ws)
     try:
@@ -546,3 +590,9 @@ async def telemetry(ws: WebSocket):
         pass
     finally:
         sim.clients.discard(ws)
+
+
+# Production: serve the built UI from the API origin (one container, no CORS). Mounted last so /api and
+# /ws routes win. In development Vite serves the UI instead and this directory does not exist.
+if (settings.frontend_dist / "index.html").exists():
+    app.mount("/", StaticFiles(directory=settings.frontend_dist, html=True), name="ui")

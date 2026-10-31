@@ -1,6 +1,7 @@
 import { useEffect } from "react";
-import { api } from "./api";
+import { api, setUnauthorizedHandler } from "./api";
 import { SideFeed } from "./components/SideFeed";
+import { LoginGate } from "./components/LoginGate";
 import { TimeTravel } from "./components/TimeTravel";
 import { CorridorMap } from "./components/CorridorMap";
 import { Inspector } from "./components/Inspector";
@@ -12,6 +13,7 @@ import { useTelemetry } from "./useTelemetry";
 export default function App() {
   useTelemetry();
   useEffect(() => {
+    setUnauthorizedHandler(() => useTwin.getState().setAuthRequired(true));
     api.assets().then(useTwin.getState().setAssets, console.error);
   }, []);
 
@@ -33,6 +35,7 @@ export default function App() {
         </aside>
       </main>
       <TimeTravel />
+      <LoginGate />
     </div>
   );
 }

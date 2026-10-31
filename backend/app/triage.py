@@ -17,6 +17,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict
 
 from .findings import Finding
+from .budget import COST, budget
 from .meta_client import MUSE_SPARK, meta
 from .models import Alert
 from .simulator import Simulator
@@ -189,6 +190,7 @@ class CognitiveTwin:
         t0 = time.perf_counter()
         text: list[str] = []
         try:
+            budget.charge("triage", COST["spark_call"])
             async for ev in meta.stream("/responses", body):
                 kind = ev.get("type")
                 if kind == "response.reasoning_summary_text.delta":

@@ -1,6 +1,11 @@
 import type { Asset, SampleItem, Concept, Finding, FindingIn, Forecast, Lift, Scenario, SegmentationReport, Verification, VideoReport, VoiceResult, WorkZoneReport } from "./types";
 
+/** Called on any 401 so the app can show the login gate. */
+let onUnauthorized: () => void = () => undefined;
+export const setUnauthorizedHandler = (fn: () => void) => (onUnauthorized = fn);
+
 async function json<T>(res: Response): Promise<T> {
+  if (res.status === 401) onUnauthorized();
   if (!res.ok) {
     const text = await res.text();
     let detail = text;
@@ -18,8 +23,19 @@ export const api = {
   assets: () => fetch("/api/assets").then(json<Asset[]>),
   health: () =>
     fetch("/api/health").then(
-      json<{ ok: boolean; meta_api_configured: boolean; glimmer_configured: boolean; spark_open_configured: boolean; modal_configured: boolean }>,
+      json<{
+        ok: boolean;
+        meta_api_configured: boolean;
+        glimmer_configured: boolean;
+        spark_open_configured: boolean;
+        modal_configured: boolean;
+        auth_required: boolean;
+        budget: { spent_usd: number; cap_usd: number };
+      }>,
     ),
+  login: (token: string) =>
+    fetch("/api/auth/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token }) }).then(json),
+  logout: () => fetch("/api/auth/logout", { method: "POST" }).then(json),
   injectAnomaly: (component_id: string) =>
     fetch("/api/sim/anomaly", {
       method: "POST",
