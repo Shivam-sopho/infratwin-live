@@ -16,11 +16,15 @@ function Pill({ ok, label }: { ok: boolean; label: string }) {
 
 export function TopBar() {
   const connected = useTwin((s) => s.connected);
-  const [metaReady, setMetaReady] = useState(false);
+  const [health, setHealth] = useState({ meta: false, glimmer: false, sparkOpen: false });
 
   useEffect(() => {
-    api.health().then((h) => setMetaReady(h.meta_api_configured), () => setMetaReady(false));
+    api.health().then(
+      (h) => setHealth({ meta: h.meta_api_configured, glimmer: h.glimmer_configured, sparkOpen: h.spark_open_configured }),
+      () => setHealth({ meta: false, glimmer: false, sparkOpen: false }),
+    );
   }, [connected]);
+  const metaReady = health.meta;
 
   return (
     <header className="flex h-12 items-center gap-4 border-b border-line bg-panel px-4">
@@ -31,6 +35,9 @@ export function TopBar() {
       <div className="ml-auto flex items-center gap-2">
         <Pill ok={connected} label={connected ? "Telemetry live" : "Telemetry offline"} />
         <Pill ok={metaReady} label={metaReady ? "Meta API key set" : "Meta API key missing"} />
+        <span className="hidden xl:inline-flex">
+          <Pill ok={health.glimmer && health.sparkOpen} label={`Open weights: Glimmer ${health.glimmer ? "✓" : "–"} · Spark Open ${health.sparkOpen ? "✓" : "–"}`} />
+        </span>
         <VoiceButton />
         <button
           onClick={() => api.injectAnomaly(DEMO_COMPONENT)}

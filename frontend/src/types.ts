@@ -108,6 +108,7 @@ export type ServerMessage =
       triages: Triage[];
       missions: Mission[];
       notes: Note[];
+      screens: Screen[];
     }
   | { type: "tick"; t: number; readings: Record<string, number>; status: StatusSnapshot }
   | { type: "alert"; alert: Alert }
@@ -116,7 +117,8 @@ export type ServerMessage =
   | { type: "triage_delta"; id: string; delta: string }
   | { type: "mission"; mission: Mission }
   | { type: "mission_delta"; id: string; delta: string }
-  | { type: "notes"; added: Note[] };
+  | { type: "notes"; added: Note[] }
+  | { type: "screen"; screen: Screen };
 
 export type ConceptCategory = "structural" | "defect";
 
@@ -291,4 +293,14 @@ export interface Forecast {
   image_prompt: string;
   image_url: string;
   models: string[];
+}
+
+export interface Screen {
+  alert_id: string;
+  t: number;
+  model: string;
+  verdict: "structural" | "sensor_fault" | "environmental" | "uncertain";
+  escalate: boolean;
+  reason: string;
+  ms: number;
 }

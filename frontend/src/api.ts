@@ -16,7 +16,8 @@ async function json<T>(res: Response): Promise<T> {
 
 export const api = {
   assets: () => fetch("/api/assets").then(json<Asset[]>),
-  health: () => fetch("/api/health").then(json<{ ok: boolean; meta_api_configured: boolean }>),
+  health: () =>
+    fetch("/api/health").then(json<{ ok: boolean; meta_api_configured: boolean; glimmer_configured: boolean; spark_open_configured: boolean }>),
   injectAnomaly: (component_id: string) =>
     fetch("/api/sim/anomaly", {
       method: "POST",

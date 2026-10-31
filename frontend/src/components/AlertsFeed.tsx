@@ -10,6 +10,7 @@ export function AlertsFeed() {
   const triages = useTwin((s) => s.triages);
   const setSideTab = useTwin((s) => s.setSideTab);
   const triageOf = Object.fromEntries(triages.map((t) => [t.alert_id, t]));
+  const screens = useTwin((s) => s.screens);
 
   return (
     <section className="flex min-h-0 flex-1 flex-col">
@@ -29,6 +30,12 @@ export function AlertsFeed() {
               </div>
               <div className="mt-0.5 text-xs text-ink">{a.message}</div>
             </button>
+            {screens[a.id] && (
+              <div className="-mt-1 px-3 pb-1 text-[11px] text-ink-2" title={`${screens[a.id].model} · ${screens[a.id].ms} ms`}>
+                <span className="text-ink-3">Glimmer:</span> {screens[a.id].verdict.replace("_", " ")}
+                {screens[a.id].escalate ? " · escalate" : ""} · {screens[a.id].reason}
+              </div>
+            )}
             <div className="-mt-1 border-b border-line/60 px-3 pb-2 text-[11px]">
               {triageOf[a.id] ? (
                 <button className="text-accent hover:underline" onClick={() => setSideTab("twin")}>

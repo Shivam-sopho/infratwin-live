@@ -22,6 +22,8 @@ from .meta_client import MUSE_SPARK, MetaAPIError, meta
 from .models import Asset
 from .sam31 import DEFAULT_CONCEPTS, Concept, SegmentationReport, prepare_image, segment_image
 from .sam31_video import VideoReport, segment_video, transcode
+from .openweight import glimmer, spark_open
+from .screening import Screener
 from .simulator import Simulator
 from .triage import CognitiveTwin, find_alert
 from .voice import ActionResult, NoteStore, VoiceResult, check_wav, interpret, transcribe, vocabulary
@@ -35,6 +37,8 @@ forecasts = ForecastStore(DATA_DIR / "forecasts")
 ASSET_OF_COMPONENT = {c.id: a.id for a in ASSETS for c in a.components}
 twin = CognitiveTwin(sim, lambda: findings.all(), auto=settings.triage_auto)
 sim.alert_listeners.append(twin.on_alert)
+screener = Screener(sim)
+sim.alert_listeners.append(screener.on_alert)
 
 
 def _mission_context(component_id: str) -> dict:
@@ -61,6 +65,8 @@ async def lifespan(_: FastAPI):
     yield
     task.cancel()
     await meta.aclose()
+    await glimmer.aclose()
+    await spark_open.aclose()
 
 
 app = FastAPI(title="InfraTwin-Live API", version="0.1.0", lifespan=lifespan)
@@ -74,7 +80,13 @@ app.add_middleware(
 
 @app.get("/api/health")
 def health():
-    return {"ok": True, "meta_api_configured": meta.configured, "ws_clients": len(sim.clients)}
+    return {
+        "ok": True,
+        "meta_api_configured": meta.configured,
+        "glimmer_configured": glimmer.configured,
+        "spark_open_configured": spark_open.configured,
+        "ws_clients": len(sim.clients),
+    }
 
 
 @app.get("/api/assets", response_model=list[Asset])
@@ -393,6 +405,7 @@ async def telemetry(ws: WebSocket):
             "triages": twin.snapshot(),
             "missions": planner.snapshot(),
             "notes": [n.model_dump() for n in notes.all()],
+            "screens": screener.snapshot(),
         }
     )
     sim.clients.add(ws)

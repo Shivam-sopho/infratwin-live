@@ -42,6 +42,9 @@ and Muse models for metrology, drone re-planning, voice logging and deterioratio
   or *Repaired*. Muse Spark first reasons about the mechanism from the defect's type, measurements and environment,
   and writes a precise edit prompt; Muse Image then edits the actual inspection photo. Results are cached and
   labelled as illustrative visualisations, not predictions
+- **Muse Glimmer first-pass screening**: every watch or critical alert is screened by Glimmer (open weights,
+  served from any OpenAI-compatible endpoint such as vLLM on Modal or OpenRouter) as structural, sensor fault,
+  environmental or uncertain, with an escalate flag, shown on the alert
 - **Cognitive Twin (Muse Spark)**: when a sensor goes critical, the twin hands Muse Spark the component's live traces,
   thresholds, neighbouring sensor states, recent alerts and pinned findings. Its reasoning streams into the panel,
   followed by a structured assessment: severity, causes, evidence, actions, and whether a visual audit is needed
@@ -76,6 +79,8 @@ backend/            FastAPI (Python 3.12, uv)
   app/missions.py     Muse Wonder mission planning with the planner as function tools
   app/voice.py        Voice Transcribe + Muse Spark intent parsing, field notes
   app/forecast.py     reason-before-render time-travel previews (Muse Spark + Muse Image)
+  app/openweight.py   OpenAI-compatible clients for Muse Glimmer / Muse Spark Open
+  app/screening.py    Glimmer first-pass alert screening
 frontend/           Vite + React 19 + TypeScript + Tailwind v4
   src/components/     CorridorMap, TwinViewer, InspectionPanel, Inspector, AlertsFeed, Sparkline
 modal_workers/      SAM 3D Objects / Body GPU services (coming)
