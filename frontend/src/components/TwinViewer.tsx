@@ -4,7 +4,7 @@ import { Bounds, Edges, Grid, Html, OrbitControls, useBounds } from "@react-thre
 import * as THREE from "three";
 import { useTwin } from "../store";
 import { CATEGORY_COLOR, CONCRETE, STATUS_COLOR, STATUS_ICON, STATUS_LABEL } from "../theme";
-import type { Asset, Component, Finding, Geometry, Status } from "../types";
+import type { Asset, Component, Finding, Geometry, Lift, Status } from "../types";
 import { MissionOverlay, Occluders, useAssetMission } from "./twin/MissionOverlay";
 
 function ComponentMesh({ comp, status }: { comp: Component; status: Status }) {
@@ -160,6 +160,57 @@ function FindingMarker({ f, g }: { f: Finding; g: Geometry }) {
   );
 }
 
+/**
+ * SAM 3D reconstruction of a lifted finding. The cloud comes back in the object's own frame (camera-style
+ * axes: x right, y down, z away from the camera), so it is re-centred, flipped to the face's frame (y up,
+ * +z out of the face) and scaled to the finding's patch on the component.
+ */
+function LiftedCloud({ f, g, lift }: { f: Finding; g: Geometry; lift: Lift }) {
+  const [geom, setGeom] = useState<THREE.BufferGeometry | null>(null);
+  const { position, quaternion, size } = useMemo(() => placeFinding(g, f.bbox_uv), [g, f.bbox_uv]);
+
+  useEffect(() => {
+    let alive = true;
+    fetch(lift.points_url)
+      .then((r) => r.arrayBuffer())
+      .then((buf) => {
+        if (!alive) return;
+        const data = new Float32Array(buf);
+        const n = data.length / 6;
+        const pos = new Float32Array(n * 3);
+        const col = new Float32Array(n * 3);
+        for (let i = 0; i < n; i++) {
+          pos[i * 3] = data[i * 6];
+          pos[i * 3 + 1] = -data[i * 6 + 1];
+          pos[i * 3 + 2] = -data[i * 6 + 2];
+          col.set(data.subarray(i * 6 + 3, i * 6 + 6), i * 3);
+        }
+        const bg = new THREE.BufferGeometry();
+        bg.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+        bg.setAttribute("color", new THREE.BufferAttribute(col, 3));
+        bg.computeBoundingBox();
+        const box = bg.boundingBox!;
+        const c = box.getCenter(new THREE.Vector3());
+        const ext = box.getSize(new THREE.Vector3());
+        const k = Math.max(size[0], size[1]) / Math.max(ext.x, ext.y, 1e-6);
+        bg.translate(-c.x, -c.y, -box.min.z); // sit the cloud on the face, protruding outward
+        bg.scale(k, k, k);
+        setGeom(bg);
+      })
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, [lift.points_url, lift.t, size]);
+
+  if (!geom) return null;
+  return (
+    <points geometry={geom} position={position} quaternion={quaternion}>
+      <pointsMaterial size={0.035} vertexColors sizeAttenuation />
+    </points>
+  );
+}
+
 function Surroundings({ type }: { type: Asset["type"] }) {
   if (type === "bridge")
     return (
@@ -185,6 +236,7 @@ export function TwinViewer() {
   const assetStatus = useTwin((s) => s.status.assets);
   const selectComponent = useTwin((s) => s.selectComponent);
   const findings = useTwin((s) => s.findings);
+  const lifts = useTwin((s) => s.lifts);
 
   const asset = assets.find((a) => a.id === selectedAssetId) ?? assets[0];
   const mission = useAssetMission(asset?.id ?? "");
@@ -208,9 +260,13 @@ export function TwinViewer() {
             ))}
           </group>
         </Bounds>
-        {assetFindings.map((f) => (
-          <FindingMarker key={f.id} f={f} g={geomOf[f.component_id]} />
-        ))}
+        {assetFindings.map((f) =>
+          lifts[f.id] ? (
+            <LiftedCloud key={f.id} f={f} g={geomOf[f.component_id]} lift={lifts[f.id]} />
+          ) : (
+            <FindingMarker key={f.id} f={f} g={geomOf[f.component_id]} />
+          ),
+        )}
         <Occluders asset={asset} />
         {mission && <MissionOverlay mission={mission} />}
         <Surroundings type={asset.type} />

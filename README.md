@@ -29,6 +29,10 @@ and Muse models for metrology, drone re-planning, voice logging and deterioratio
   plus distance transform), with stated assumptions and plausibility warnings. The normal-gradient plane raycasting
   method (depth gradients → surface normal → ray/plane intersection, giving true area and inclination) is implemented
   and validated on synthetic tilted planes, ready for SAM 3D depth
+- **SAM 3D (Modal GPU endpoints)**: *Lift to 3D* reconstructs a pinned defect with SAM 3D Objects and shows the
+  point cloud on the twin at the finding. The *Work-zone check* runs SAM 3D Body and SAM 3D Objects on the same
+  frame and flags workers inside the exclusion radius below an overhead defect. Service:
+  `modal_workers/sam3d_service.py` (deploy steps in `modal_workers/README.md`; not yet run on a GPU)
 - **Independent measurement check (Muse Spark Open + Modal Sandbox)**: for any measured finding, Spark Open gets
   the defect mask and scale, writes its own measurement code, runs it in a network-isolated Modal Sandbox
   (model-written code never runs locally), and compares its numbers with the twin's, with its commentary and code
@@ -87,9 +91,10 @@ backend/            FastAPI (Python 3.12, uv)
   app/screening.py    Glimmer first-pass alert screening
   app/verify.py       Spark Open independent re-measurement via tool calls
   app/sandbox.py      Modal Sandbox runner (network-blocked, time/CPU/memory bounded)
+  app/sam3d.py        SAM 3D endpoint client, lifted-defect store, work-zone geofencing
 frontend/           Vite + React 19 + TypeScript + Tailwind v4
   src/components/     CorridorMap, TwinViewer, InspectionPanel, Inspector, AlertsFeed, Sparkline
-modal_workers/      SAM 3D Objects / Body GPU services (coming)
+modal_workers/      SAM 3D Objects / Body GPU endpoints on Modal
 docs/ROADMAP.md     feature plan + Meta API integration notes
 ```
 

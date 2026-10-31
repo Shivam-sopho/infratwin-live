@@ -1,4 +1,5 @@
 import asyncio
+import base64
 import json
 import os
 import tempfile
@@ -6,6 +7,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 import av
+import httpx
 from fastapi import FastAPI, Form, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
@@ -23,6 +25,7 @@ from .models import Asset
 from .sam31 import DEFAULT_CONCEPTS, Concept, SegmentationReport, prepare_image, segment_image
 from .sam31_video import VideoReport, segment_video, transcode
 from .openweight import glimmer, spark_open
+from . import sam3d
 from .sandbox import modal_configured, run_python
 from .screening import Screener
 from .simulator import Simulator
@@ -36,6 +39,7 @@ DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 findings = FindingStore(DATA_DIR / "findings.json")
 notes = NoteStore(DATA_DIR / "notes.json")
 forecasts = ForecastStore(DATA_DIR / "forecasts")
+lifts = sam3d.LiftStore(DATA_DIR / "lifts")
 ASSET_OF_COMPONENT = {c.id: a.id for a in ASSETS for c in a.components}
 twin = CognitiveTwin(sim, lambda: findings.all(), auto=settings.triage_auto)
 sim.alert_listeners.append(twin.on_alert)
@@ -88,6 +92,7 @@ def health():
         "glimmer_configured": glimmer.configured,
         "spark_open_configured": spark_open.configured,
         "modal_configured": modal_configured(),
+        "sam3d": sam3d.configured(),
         "ws_clients": len(sim.clients),
     }
 
@@ -254,6 +259,61 @@ async def create_forecast(finding_id: str, req: ForecastRequest):
         return await render_forecast(forecasts, f, req.scenario, context)
     except (MetaAPIError, ValidationError) as e:
         raise HTTPException(502, f"Forecast failed: {e}")
+
+
+@app.post("/api/findings/{finding_id}/lift", response_model=sam3d.Lift)
+async def lift_finding(finding_id: str):
+    """SAM 3D Objects: reconstruct the pinned defect as a 3D point cloud with pose."""
+    f = _finding(finding_id)
+    if not f.thumbnail_mask_png:
+        raise HTTPException(400, "Finding has no aligned mask to lift (re-pin it from the Inspection tab)")
+    if not sam3d.configured()["objects"]:
+        raise HTTPException(503, "SAM 3D Objects is not deployed (set SAM3D_OBJECTS_URL)")
+    try:
+        out = await sam3d.reconstruct(f.thumbnail, f.thumbnail_mask_png)
+    except (sam3d.Sam3DError, httpx.HTTPError) as e:
+        raise HTTPException(502, f"SAM 3D Objects failed: {e}")
+    lift = lifts.save(f.id, out)
+    await sim.broadcast({"type": "lift", "lift": lift.model_dump()})
+    return lift
+
+
+@app.get("/api/findings/{finding_id}/lift/points.bin")
+def lift_points(finding_id: str):
+    path = lifts.points_path(finding_id)
+    if path is None:
+        raise HTTPException(404, "Not lifted yet")
+    return FileResponse(path, media_type="application/octet-stream")
+
+
+@app.post("/api/inspect/workzone", response_model=sam3d.WorkZoneReport)
+async def inspect_workzone(
+    file: UploadFile,
+    defect_bounds: str = Form(...),
+    defect_mask_png: str = Form(...),
+    radius_m: float = Form(3.0),
+):
+    """SAM 3D Body + SAM 3D Objects on one frame: are workers inside the defect's drop zone?"""
+    cfg = sam3d.configured()
+    if not (cfg["objects"] and cfg["body"]):
+        raise HTTPException(503, "SAM 3D Objects and Body must both be deployed (SAM3D_OBJECTS_URL, SAM3D_BODY_URL)")
+    try:
+        bounds = tuple(int(v) for v in json.loads(defect_bounds))
+        assert len(bounds) == 4 and defect_mask_png.startswith("data:image/png;base64,")
+    except (ValueError, AssertionError, TypeError):
+        raise HTTPException(400, "defect_bounds must be [l, t, r, b] and defect_mask_png a PNG data URL")
+    data = await file.read(MAX_UPLOAD_BYTES + 1)
+    if len(data) > MAX_UPLOAD_BYTES:
+        raise HTTPException(413, "Image larger than 20 MB")
+    try:
+        image_url, width, height = await asyncio.to_thread(prepare_image, data)
+    except (UnidentifiedImageError, Image.DecompressionBombError, OSError):
+        raise HTTPException(400, "Not a readable image")
+    mask = await asyncio.to_thread(sam3d.full_frame_mask, width, height, bounds, defect_mask_png)
+    try:
+        return await sam3d.work_zone(base64.b64decode(image_url.split(",", 1)[1]), mask, max(0.5, min(radius_m, 20.0)))
+    except (sam3d.Sam3DError, httpx.HTTPError) as e:
+        raise HTTPException(502, f"SAM 3D failed: {e}")
 
 
 verifications: dict[str, Verification] = {}
@@ -432,6 +492,7 @@ async def telemetry(ws: WebSocket):
             "missions": planner.snapshot(),
             "notes": [n.model_dump() for n in notes.all()],
             "screens": screener.snapshot(),
+            "lifts": [x.model_dump() for x in lifts.all()],
         }
     )
     sim.clients.add(ws)

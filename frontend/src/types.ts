@@ -94,6 +94,7 @@ export interface Finding {
   frames_tracked: number | null;
   metrology: Metrology | null;
   mask_png?: string | null;
+  thumbnail_mask_png?: string | null;
   thumbnail: string;
 }
 
@@ -110,6 +111,7 @@ export type ServerMessage =
       missions: Mission[];
       notes: Note[];
       screens: Screen[];
+      lifts: Lift[];
     }
   | { type: "tick"; t: number; readings: Record<string, number>; status: StatusSnapshot }
   | { type: "alert"; alert: Alert }
@@ -119,7 +121,8 @@ export type ServerMessage =
   | { type: "mission"; mission: Mission }
   | { type: "mission_delta"; id: string; delta: string }
   | { type: "notes"; added: Note[] }
-  | { type: "screen"; screen: Screen };
+  | { type: "screen"; screen: Screen }
+  | { type: "lift"; lift: Lift };
 
 export type ConceptCategory = "structural" | "defect";
 
@@ -318,4 +321,30 @@ export interface Verification {
   agreement: string | null;
   summary: string | null;
   error: string | null;
+}
+
+export interface Lift {
+  finding_id: string;
+  t: number;
+  n_points: number;
+  rotation: number[];
+  translation: number[];
+  scale: number[];
+  points_url: string;
+  extent: number[];
+}
+
+export interface WorkZoneReport {
+  radius_m: number;
+  defect_position: number[] | null;
+  workers: {
+    index: number;
+    position: number[] | null;
+    bbox: number[] | null;
+    horizontal_distance_m: number | null;
+    below_defect: boolean | null;
+    verdict: "inside_exclusion" | "clear" | "unknown";
+  }[];
+  any_violation: boolean;
+  note: string;
 }

@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { Alert, Asset, Component, Finding, Mission, Note, Screen, Sensor, ServerMessage, StatusSnapshot, Triage } from "./types";
+import type { Alert, Asset, Component, Finding, Lift, Mission, Note, Screen, Sensor, ServerMessage, StatusSnapshot, Triage } from "./types";
 
 const HISTORY_LEN = 240;
 const EMPTY_STATUS: StatusSnapshot = { sensors: {}, components: {}, assets: {} };
@@ -17,6 +17,7 @@ interface TwinState {
   selectedMissionId: string | null;
   notes: Note[];
   screens: Record<string, Screen>;
+  lifts: Record<string, Lift>;
   timeTravelFindingId: string | null;
   setTimeTravel: (id: string | null) => void;
   connected: boolean;
@@ -50,6 +51,7 @@ export const useTwin = create<TwinState>((set, get) => ({
   selectedMissionId: null,
   notes: [],
   screens: {},
+  lifts: {},
   timeTravelFindingId: null,
   setTimeTravel: (timeTravelFindingId) => set({ timeTravelFindingId }),
   connected: false,
@@ -75,7 +77,9 @@ export const useTwin = create<TwinState>((set, get) => ({
         for (const { readings } of msg.history) {
           for (const [id, v] of Object.entries(readings)) (history[id] ??= []).push(v);
         }
-        set({ history, alerts: [...msg.alerts].reverse(), status: msg.status, findings: msg.findings, triages: msg.triages, missions: msg.missions, notes: msg.notes, screens: Object.fromEntries(msg.screens.map((x) => [x.alert_id, x])) });
+        set({ history, alerts: [...msg.alerts].reverse(), status: msg.status, findings: msg.findings, triages: msg.triages, missions: msg.missions, notes: msg.notes, screens: Object.fromEntries(msg.screens.map((x) => [x.alert_id, x])),
+          lifts: Object.fromEntries(msg.lifts.map((x) => [x.finding_id, x])),
+        });
         break;
       }
       case "tick": {
@@ -109,6 +113,9 @@ export const useTwin = create<TwinState>((set, get) => ({
         });
         break;
       }
+      case "lift":
+        set({ lifts: { ...get().lifts, [msg.lift.finding_id]: msg.lift } });
+        break;
       case "screen":
         set({ screens: { ...get().screens, [msg.screen.alert_id]: msg.screen } });
         break;

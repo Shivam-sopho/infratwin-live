@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { api } from "../api";
 import { useTwin } from "../store";
 import type { Finding, Sensor } from "../types";
@@ -33,6 +34,8 @@ function FindingCard({ f }: { f: Finding }) {
   const selected = useTwin((s) => s.selectedFindingId === f.id);
   const selectFinding = useTwin((s) => s.selectFinding);
   const setTimeTravel = useTwin((s) => s.setTimeTravel);
+  const lifted = useTwin((s) => !!s.lifts[f.id]);
+  const [lifting, setLifting] = useState<string | null>(null);
   return (
     <div
       onClick={() => selectFinding(f.id)}
@@ -85,6 +88,28 @@ function FindingCard({ f }: { f: Finding }) {
           </div>
         )}
         <VerifyAction f={f} />
+        {f.thumbnail_mask_png && (
+          <div onClick={(e) => e.stopPropagation()}>
+            {lifted ? (
+              <span className="text-[11px] text-ink-2">3D reconstruction on twin (SAM 3D Objects)</span>
+            ) : (
+              <button
+                className="text-[11px] text-accent hover:underline disabled:opacity-50"
+                disabled={lifting === "busy"}
+                onClick={() => {
+                  setLifting("busy");
+                  api.lift(f.id).then(
+                    () => setLifting(null),
+                    (e) => setLifting(e instanceof Error ? e.message : String(e)),
+                  );
+                }}
+              >
+                {lifting === "busy" ? "Lifting with SAM 3D (cold start can take minutes)…" : "Lift to 3D (SAM 3D)"}
+              </button>
+            )}
+            {lifting && lifting !== "busy" && <p className="text-[11px] text-ink-3">{lifting}</p>}
+          </div>
+        )}
         <div className="truncate text-ink-3">
           {f.source === "video" ? `video, ${f.frames_tracked} frames` : "photo"} · {f.source_name} · {fmtTime(f.t)}
         </div>

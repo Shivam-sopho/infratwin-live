@@ -7,7 +7,7 @@ Build order: each step ships a working, demoable increment on top of the foundat
 | 0 | Foundation: GIS corridor map, placeholder BIM twin, live SHM telemetry + health roll-up, alerts | — | ✅ |
 | 1 | SAM 3.1 dual-vocabulary segmentation of inspection frames: structural elements + dacl10k defects, mask overlays, defect → host-element attribution | `sam-3.1` | ✅ |
 | 2 | Pin findings to twin components (defect patches on twin, counts on map, findings log) + SAM 3.1 video tracking | `sam-3.1` | ✅ |
-| 3 | SAM 3D Objects defect lifting + SAM 3D Body worker geofence on Modal | SAM 3D (open weights) | ⬜ |
+| 3 | SAM 3D Objects defect lifting (point cloud + pose on the twin) + SAM 3D Body work-zone geofencing; Modal service written, backend/UI tested against mocks, **not yet run on GPU** | SAM 3D (open weights) | 🟡 |
 | 4 | Union-Find Scan-to-BIM component clustering (replaces placeholder geometry) | — | ⬜ |
 | 5 | Hierarchical refinement: coarse structure + hi-res defect patch, compute-savings badge | — | ⬜ |
 | 6 | Defect metrology: host-element scale (area, perimeter, crack length/width) ✅; normal-gradient plane raycasting (true area + inclination) implemented & tested, awaits SAM 3D depth; Muse Spark Open independent re-measurement with its own code in a network-isolated Modal Sandbox ✅ (needs Spark Open host + Modal) | Muse Spark Open | ✅ |

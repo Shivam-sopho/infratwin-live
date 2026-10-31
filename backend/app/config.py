@@ -22,6 +22,12 @@ class Settings(BaseSettings):
     spark_open_api_key: str = ""
     spark_open_model: str = ""
 
+    # SAM 3D Objects / Body endpoints deployed from modal_workers/sam3d_service.py (proxy-auth protected).
+    sam3d_objects_url: str = ""
+    sam3d_body_url: str = ""
+    modal_proxy_key: str = ""
+    modal_proxy_secret: str = ""
+
     # Cognitive Twin: auto-triage critical alerts with Muse Spark.
     triage_auto: bool = True
 

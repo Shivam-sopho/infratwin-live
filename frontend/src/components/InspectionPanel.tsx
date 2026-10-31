@@ -2,8 +2,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api";
 import { useTwin } from "../store";
 import { CATEGORY_COLOR } from "../theme";
-import type { Concept, ConceptCategory, Detection, FindingIn, Metrology, SegmentationReport, VideoReport } from "../types";
-import { cropThumbnail, seek, toUV } from "./inspection/capture";
+import { STATUS_COLOR, STATUS_ICON } from "../theme";
+import type { Concept, ConceptCategory, Detection, FindingIn, Metrology, SegmentationReport, VideoReport, WorkZoneReport } from "../types";
+import { alignMaskToCrop, cropWithRect, seek, toUV } from "./inspection/capture";
 import { metrologySummary, metrologyTooltip } from "./inspection/metrology";
 import { Overlay, detLabel } from "./inspection/Overlay";
 
@@ -29,6 +30,7 @@ interface DefectRow {
   bestFrame: number | null;
   metrology: Metrology | null;
   maskPng: string | null;
+  maskBounds: [number, number, number, number] | null;
 }
 
 function defectRows(run: Run): DefectRow[] {
@@ -47,6 +49,7 @@ function defectRows(run: Run): DefectRow[] {
         bestFrame: null,
         metrology: d.metrology ?? null,
         maskPng: d.mask?.png ?? null,
+        maskBounds: d.mask?.bounds ?? null,
       }));
   }
   return run.report.tracks
@@ -65,6 +68,7 @@ function defectRows(run: Run): DefectRow[] {
         bestFrame: t.best_frame,
         metrology: t.metrology,
         maskPng: best.mask?.png ?? null,
+        maskBounds: best.mask?.bounds ?? null,
       };
     });
 }
@@ -102,6 +106,8 @@ export function InspectionPanel() {
   const [show, setShow] = useState<Record<ConceptCategory, boolean>>({ structural: true, defect: true });
   const [target, setTarget] = useState<string>("");
   const [pinSel, setPinSel] = useState<Set<string>>(new Set());
+  const [zone, setZone] = useState<WorkZoneReport | null>(null);
+  const [radius, setRadius] = useState(3);
   const input = useRef<HTMLInputElement>(null);
   const imgRef = useRef<HTMLImageElement | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -163,6 +169,7 @@ export function InspectionPanel() {
     setNatural(null);
     setDuration(null);
     setRun(null);
+    setZone(null);
     setFrame(0);
     setError(null);
     setNotice(null);
@@ -198,13 +205,10 @@ export function InspectionPanel() {
       const video = videoRef.current;
       const resumeAt = video?.currentTime ?? 0;
       for (const r of chosen) {
-        let thumbnail: string;
-        if (run.kind === "video" && video) {
-          await seek(video, (r.bestFrame ?? 0) / run.report.fps + 0.01);
-          thumbnail = cropThumbnail(video, r.box, W, H, PIN_CROP_PX);
-        } else {
-          thumbnail = cropThumbnail(imgRef.current!, r.box, W, H, PIN_CROP_PX);
-        }
+        if (run.kind === "video" && video) await seek(video, (r.bestFrame ?? 0) / run.report.fps + 0.01);
+        const crop = cropWithRect(run.kind === "video" && video ? video : imgRef.current!, r.box, W, H, PIN_CROP_PX);
+        const thumbnail = crop.url;
+        const thumbnailMask = r.maskPng && r.maskBounds ? await alignMaskToCrop(r.maskPng, r.maskBounds, crop.rect) : null;
         items.push({
           component_id: target,
           concept: r.concept,
@@ -217,6 +221,7 @@ export function InspectionPanel() {
           frames_tracked: r.frames,
           metrology: r.metrology,
           mask_png: r.maskPng,
+          thumbnail_mask_png: thumbnailMask,
           thumbnail,
         });
       }
@@ -254,6 +259,21 @@ export function InspectionPanel() {
   );
   const measured = rows.some((r) => r.metrology);
   const scaleNote = rows.find((r) => r.metrology)?.metrology;
+
+  const checkWorkZone = async () => {
+    if (!file || run?.kind !== "image") return;
+    const d = rows.find((r) => pinSel.has(r.id) && r.maskPng && r.maskBounds) ?? rows.find((r) => r.maskPng && r.maskBounds);
+    if (!d) return;
+    setBusy("Locating workers…");
+    setError(null);
+    try {
+      setZone(await api.workzone(file, d.maskBounds!, d.maskPng!, radius));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(null);
+    }
+  };
 
   const viewInTwin = (componentId: string) => {
     selectComponent(componentId);
@@ -338,6 +358,23 @@ export function InspectionPanel() {
               .map((d) => (
                 <Overlay key={d.id} d={d} W={W} active={hovered === d.id || hovered === d.host_id} onHover={isVideo ? undefined : setHovered} />
               ))}
+            {zone?.workers
+              .filter((w) => w.bbox && w.bbox.length >= 4)
+              .map((w) => {
+                const [x1, y1, x2, y2] = w.bbox!;
+                const st = w.verdict === "inside_exclusion" ? "critical" : w.verdict === "clear" ? "nominal" : "watch";
+                const font = W / 48;
+                const label = `${STATUS_ICON[st]} Worker ${w.index + 1}${w.horizontal_distance_m != null ? ` · ${w.horizontal_distance_m} m` : ""}`;
+                return (
+                  <g key={w.index}>
+                    <rect x={x1} y={y1} width={x2 - x1} height={y2 - y1} fill="none" stroke={STATUS_COLOR[st]} strokeWidth={Math.max(2, W / 400)} />
+                    <rect x={x1} y={Math.max(0, y1 - font * 1.4)} width={label.length * font * 0.58 + font * 0.6} height={font * 1.4} fill={STATUS_COLOR[st]} rx={font * 0.2} />
+                    <text x={x1 + font * 0.3} y={Math.max(0, y1 - font * 1.4) + font * 1.02} fontSize={font} fill="#0b0f14" fontWeight={600}>
+                      {label}
+                    </text>
+                  </g>
+                );
+              })}
           </svg>
         )}
         {!preview && (
@@ -450,6 +487,28 @@ export function InspectionPanel() {
                 </tbody>
               </table>
 
+              {zone && (
+                <div className={`mt-2 rounded border px-2 py-1.5 ${zone.any_violation ? "border-critical/60" : "border-line"}`}>
+                  <div className="text-ink">
+                    <span style={{ color: STATUS_COLOR[zone.any_violation ? "critical" : "nominal"] }}>{STATUS_ICON[zone.any_violation ? "critical" : "nominal"]}</span>{" "}
+                    {zone.workers.length === 0
+                      ? "No people detected in the frame."
+                      : zone.any_violation
+                        ? `Worker inside the ${zone.radius_m} m drop zone below the defect`
+                        : `All ${zone.workers.length} detected people outside the ${zone.radius_m} m drop zone`}
+                  </div>
+                  <ul className="mt-1 text-ink-2">
+                    {zone.workers.map((w) => (
+                      <li key={w.index}>
+                        Worker {w.index + 1}: {w.verdict.replace("_", " ")}
+                        {w.horizontal_distance_m != null && ` · ${w.horizontal_distance_m} m horizontal`}
+                        {w.below_defect != null && (w.below_defect ? " · below defect" : " · above defect")}
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="mt-1 text-[11px] text-ink-3">{zone.note} SAM 3D Body + SAM 3D Objects.</p>
+                </div>
+              )}
               <p className="mt-2 text-[11px] text-ink-3">
                 {scaleNote
                   ? `Scale from ${scaleNote.scale_note} (${scaleNote.scale_mm_per_px} mm/px). Assumes a square-on view; inclination and depth need SAM 3D.`
@@ -468,6 +527,29 @@ export function InspectionPanel() {
                     ? "Pinning…"
                     : `Pin ${pinSel.size} defect${pinSel.size === 1 ? "" : "s"} to ${target ? (components[target]?.name ?? "twin") : "twin"}`}
                 </button>
+                {run.kind === "image" && rows.some((r) => r.maskPng) && (
+                  <span className="flex items-center gap-1">
+                    <button
+                      onClick={checkWorkZone}
+                      disabled={!!busy}
+                      className="rounded-md border border-line px-2.5 py-1 text-xs text-ink-2 hover:text-ink disabled:opacity-40"
+                      title="SAM 3D Body + SAM 3D Objects: are people within the drop zone of the selected defect?"
+                    >
+                      {busy === "Locating workers…" ? "Locating workers…" : "Work-zone check"}
+                    </button>
+                    <input
+                      type="number"
+                      min={1}
+                      max={20}
+                      step={0.5}
+                      value={radius}
+                      onChange={(e) => setRadius(Number(e.target.value))}
+                      className="w-14 rounded-md border border-line bg-bg px-1.5 py-1 text-xs text-ink"
+                      aria-label="Exclusion radius in metres"
+                    />
+                    <span className="text-ink-3">m</span>
+                  </span>
+                )}
                 {notice && (
                   <span className="text-ink-2">
                     Pinned {notice.count} to {components[notice.componentId]?.name}.{" "}

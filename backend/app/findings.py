@@ -27,6 +27,7 @@ class FindingIn(BaseModel):
     frames_tracked: int | None = None
     metrology: Metrology | None = None
     mask_png: str | None = None  # box-local defect mask (white RGBA, alpha = mask) for independent re-measurement
+    thumbnail_mask_png: str | None = None  # same mask aligned to the thumbnail crop, for SAM 3D lifting
     thumbnail: str
 
     @field_validator("thumbnail")
@@ -36,7 +37,7 @@ class FindingIn(BaseModel):
             raise ValueError("thumbnail must be an image data URL under 300 kB")
         return v
 
-    @field_validator("mask_png")
+    @field_validator("mask_png", "thumbnail_mask_png")
     @classmethod
     def _mask(cls, v: str | None) -> str | None:
         if v is not None and (not v.startswith("data:image/png;base64,") or len(v) > MAX_THUMBNAIL_CHARS):

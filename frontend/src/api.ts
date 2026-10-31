@@ -1,4 +1,4 @@
-import type { Asset, Concept, Finding, FindingIn, Forecast, Scenario, SegmentationReport, Verification, VideoReport, VoiceResult } from "./types";
+import type { Asset, Concept, Finding, FindingIn, Forecast, Lift, Scenario, SegmentationReport, Verification, VideoReport, VoiceResult, WorkZoneReport } from "./types";
 
 async function json<T>(res: Response): Promise<T> {
   if (!res.ok) {
@@ -74,5 +74,14 @@ export const api = {
       body: JSON.stringify({ scenario }),
     }).then(json<Forecast>),
   verify: (findingId: string) => fetch(`/api/findings/${findingId}/verify`, { method: "POST" }).then(json<Verification>),
+  lift: (findingId: string) => fetch(`/api/findings/${findingId}/lift`, { method: "POST" }).then(json<Lift>),
+  workzone: (file: File, bounds: number[], maskPng: string, radiusM: number) => {
+    const body = new FormData();
+    body.append("file", file);
+    body.append("defect_bounds", JSON.stringify(bounds));
+    body.append("defect_mask_png", maskPng);
+    body.append("radius_m", String(radiusM));
+    return fetch("/api/inspect/workzone", { method: "POST", body }).then(json<WorkZoneReport>);
+  },
   deleteFinding: (id: string) => fetch(`/api/findings/${id}`, { method: "DELETE" }).then(json),
 };

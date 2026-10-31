@@ -1,10 +1,30 @@
 type Box = [number, number, number, number];
 
+export interface CropRect {
+  x1: number; // crop origin in source pixels
+  y1: number;
+  scale: number; // output px per source px
+  outW: number;
+  outH: number;
+  sx: number; // source px per ref px
+  sy: number;
+}
+
 /**
  * Crop a padded thumbnail of `box` (given in a ref frame of refW×refH, e.g. the backend's
  * downscaled frame) out of an image or video element at its native resolution.
  */
 export function cropThumbnail(src: HTMLImageElement | HTMLVideoElement, box: Box, refW: number, refH: number, maxPx = 160): string {
+  return cropWithRect(src, box, refW, refH, maxPx).url;
+}
+
+export function cropWithRect(
+  src: HTMLImageElement | HTMLVideoElement,
+  box: Box,
+  refW: number,
+  refH: number,
+  maxPx = 160,
+): { url: string; rect: CropRect } {
   const srcW = src instanceof HTMLVideoElement ? src.videoWidth : src.naturalWidth;
   const srcH = src instanceof HTMLVideoElement ? src.videoHeight : src.naturalHeight;
   const sx = srcW / refW;
@@ -22,7 +42,31 @@ export function cropThumbnail(src: HTMLImageElement | HTMLVideoElement, box: Box
   canvas.width = Math.max(1, Math.round(w * scale));
   canvas.height = Math.max(1, Math.round(h * scale));
   canvas.getContext("2d")!.drawImage(src, x1, y1, w, h, 0, 0, canvas.width, canvas.height);
-  return canvas.toDataURL("image/jpeg", 0.8);
+  return {
+    url: canvas.toDataURL("image/jpeg", 0.8),
+    rect: { x1, y1, scale, outW: canvas.width, outH: canvas.height, sx, sy },
+  };
+}
+
+/** Re-draw a box-local mask PNG (bounds in ref coords) into the coordinate frame of a crop. */
+export async function alignMaskToCrop(maskPng: string, bounds: Box, rect: CropRect): Promise<string> {
+  const img = new Image();
+  img.src = maskPng;
+  await img.decode();
+  const [l, t, r, b] = bounds;
+  const canvas = document.createElement("canvas");
+  canvas.width = rect.outW;
+  canvas.height = rect.outH;
+  const ctx = canvas.getContext("2d")!;
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(
+    img,
+    (l * rect.sx - rect.x1) * rect.scale,
+    (t * rect.sy - rect.y1) * rect.scale,
+    (r - l) * rect.sx * rect.scale,
+    (b - t) * rect.sy * rect.scale,
+  );
+  return canvas.toDataURL("image/png");
 }
 
 export function seek(video: HTMLVideoElement, t: number): Promise<void> {
