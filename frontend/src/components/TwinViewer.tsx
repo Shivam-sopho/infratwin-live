@@ -6,6 +6,7 @@ import { useTwin } from "../store";
 import { CATEGORY_COLOR, CONCRETE, STATUS_COLOR, STATUS_ICON, STATUS_LABEL } from "../theme";
 import type { Asset, Component, Finding, Geometry, Lift, Status } from "../types";
 import { MissionOverlay, Occluders, useAssetMission } from "./twin/MissionOverlay";
+import { ReplayBar } from "./twin/ReplayBar";
 
 function ComponentMesh({ comp, status }: { comp: Component; status: Status }) {
   const mat = useRef<THREE.MeshStandardMaterial>(null);
@@ -13,6 +14,15 @@ function ComponentMesh({ comp, status }: { comp: Component; status: Status }) {
   const selected = useTwin((s) => s.selectedComponentId === comp.id);
   const selectComponent = useTwin((s) => s.selectComponent);
   const g = comp.geometry!;
+  const ribCurve = useMemo(() => {
+    if (g.shape !== "arch_rib") return null;
+    const [span, rise] = g.size;
+    const pts = Array.from({ length: 33 }, (_, i) => {
+      const x = -span / 2 + (span * i) / 32;
+      return new THREE.Vector3(x, rise * (1 - (2 * x / span) ** 2), 0);
+    });
+    return new THREE.CatmullRomCurve3(pts);
+  }, [g]);
 
   useFrame(({ clock }) => {
     if (!mat.current) return;
@@ -30,6 +40,8 @@ function ComponentMesh({ comp, status }: { comp: Component; status: Status }) {
   let rotation: [number, number, number] = [0, 0, 0];
   if (g.shape === "box") {
     geometry = <boxGeometry args={g.size} />;
+  } else if (g.shape === "arch_rib") {
+    geometry = <tubeGeometry args={[ribCurve!, 96, g.size[2] / 2, 10, false]} />;
   } else if (g.shape === "cylinder") {
     geometry = <cylinderGeometry args={[g.size[0], g.size[0], g.size[1], 32]} />;
   } else {
@@ -101,7 +113,12 @@ function placeFinding(g: Geometry, [u1, v1, u2, v2]: Finding["bbox_uv"]) {
   const cv = (v1 + v2) / 2;
   const obj = new THREE.Object3D();
   let size: [number, number];
-  if (g.shape === "arch") {
+  if (g.shape === "arch_rib") {
+    const [span, rise, thick] = g.size;
+    const x = (cu - 0.5) * span;
+    obj.position.set(px + x, py + rise * (1 - (2 * x / span) ** 2), pz + thick / 2 + 0.05);
+    size = [(u2 - u1) * span * 0.2, (v2 - v1) * rise * 0.2];
+  } else if (g.shape === "arch") {
     const [r, len] = g.size;
     const theta = Math.PI * (1 - cu);
     obj.position.set(px + (r - 0.1) * Math.cos(theta), py + (r - 0.1) * Math.sin(theta), pz + (cv - 0.5) * len * 0.8);
@@ -274,12 +291,19 @@ export function TwinViewer() {
         <OrbitControls makeDefault maxPolarAngle={Math.PI / 2.05} />
       </Canvas>
 
+      {asset.data_source === "replay" && <ReplayBar assetId={asset.id} />}
       <div className="pointer-events-none absolute left-3 top-3 rounded-md border border-line bg-panel/85 px-3 py-2 backdrop-blur">
         <div className="text-[11px] uppercase tracking-wider text-ink-3">Structural twin</div>
         <div className="text-sm font-semibold text-ink">{asset.name}</div>
         <div className="mt-1 flex items-center gap-1.5 text-xs text-ink-2">
           <span style={{ color: STATUS_COLOR[status] }}>{STATUS_ICON[status]}</span>
           {STATUS_LABEL[status]} · {physical.length} BIM components
+        </div>
+        <div className="mt-1 flex items-center gap-1.5 text-xs" title={asset.data_note}>
+          <span className={`inline-block h-2 w-2 rounded-full ${asset.data_source === "simulated" ? "bg-ink-3" : "bg-accent"}`} />
+          <span className={asset.data_source === "simulated" ? "text-ink-3" : "text-ink"}>
+            {asset.data_source === "simulated" ? "Simulated sensor data" : asset.data_source === "replay" ? "Real monitoring data · replayed" : "Live sensor feed"}
+          </span>
         </div>
         {assetFindings.length > 0 && (
           <div className="mt-1 flex items-center gap-1.5 text-xs text-ink-2">

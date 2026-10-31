@@ -54,7 +54,29 @@ const STEPS: Step[] = [
     },
   },
   {
-    title: "3 · AI visual inspection",
+    title: "3 · A real bridge, real data",
+    models: ["Muse Glimmer", "Muse Spark 1.3"],
+    say:
+      "Now a real structure: railway bridge KW51 near Leuven, with 15 months of real monitoring data. Its natural " +
+      "frequencies drift with temperature and freezing ballast, so raw thresholds would be useless; the twin " +
+      "compensates for the environment and watches what's left. When the bridge was strengthened in 2019, the twin " +
+      "flags the stiffness change from the data alone.",
+    todo: "Replay runs at 3 days/s from just before the retrofit: watch the deviation sensors and alerts climb.",
+    action: {
+      label: "Open KW51 replay",
+      run: async () => {
+        const s = useTwin.getState();
+        if (!s.assets.some((a) => a.id === "KW51")) throw new Error("KW51 data not loaded on the server");
+        s.selectAsset("KW51");
+        s.selectComponent("KW51.DECK");
+        s.setCenterTab("twin");
+        s.setSideTab("alerts");
+        await api.replay("KW51", { seek: "2019-04-20", hours_per_s: 72, playing: true });
+      },
+    },
+  },
+  {
+    title: "4 · AI visual inspection",
     models: ["SAM 3.1", "SAM 3D Objects", "SAM 3D Body", "Muse Spark Open"],
     say:
       "The drone footage goes to SAM 3.1, which segments structural elements and defects in one pass and pins each " +
@@ -71,7 +93,7 @@ const STEPS: Step[] = [
     },
   },
   {
-    title: "4 · Hands-free, and into the future",
+    title: "5 · Hands-free, and into the future",
     models: ["Muse Voice Transcribe", "Muse Spark 1.3", "Muse Image"],
     say:
       "The inspector just talks to the twin. Then we drag the timeline: Muse Spark reasons about how this crack evolves " +
@@ -89,7 +111,7 @@ const STEPS: Step[] = [
     },
   },
   {
-    title: "5 · Re-planning the drone around obstacles",
+    title: "6 · Re-planning the drone around obstacles",
     models: ["Muse Wonder"],
     say:
       "A drainage pipe blocks the square-on view of the crack. Muse Wonder calls the twin's geometry engine as tools, " +

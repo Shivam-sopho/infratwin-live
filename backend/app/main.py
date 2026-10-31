@@ -1,6 +1,7 @@
 import asyncio
 import base64
 import json
+from datetime import datetime, timezone
 import os
 import tempfile
 from contextlib import asynccontextmanager
@@ -36,8 +37,11 @@ from .triage import CognitiveTwin, find_alert
 from .verify import Verification, verify
 from .voice import ActionResult, NoteStore, VoiceResult, check_wav, interpret, transcribe, vocabulary
 
-ASSETS = build_corridor()
-sim = Simulator(ASSETS)
+from . import kw51  # noqa: E402
+
+KW51_DATA = kw51.load(settings.kw51_path, settings.data_dir / "kw51_cache.npz")
+ASSETS = build_corridor(include_kw51=KW51_DATA is not None)
+sim = Simulator(ASSETS, replays={"KW51": kw51.Replay(KW51_DATA, settings.kw51_hours_per_s)} if KW51_DATA else None)
 DATA_DIR = settings.data_dir
 SAMPLES_DIR = settings.samples_dir  # local only, git-ignored
 findings = FindingStore(DATA_DIR / "findings.json")
@@ -135,6 +139,45 @@ def health():
 @app.get("/api/assets", response_model=list[Asset])
 def list_assets():
     return ASSETS
+
+
+class ReplayControl(BaseModel):
+    playing: bool | None = None
+    hours_per_s: float | None = None
+    seek: str | None = None  # "start", "retrofit", "post-retrofit" or an ISO date
+
+
+@app.post("/api/replay/{asset_id}")
+def control_replay(asset_id: str, req: ReplayControl):
+    rp = sim.replays.get(asset_id)
+    if rp is None:
+        raise HTTPException(404, f"No replay for {asset_id}")
+    if req.playing is not None:
+        rp.playing = req.playing
+    if req.hours_per_s is not None:
+        rp.hours_per_s = max(0.25, min(req.hours_per_s, 24 * 30))
+    if req.seek:
+        targets = {"start": rp.data.start, "retrofit": kw51.RETROFIT_START, "post-retrofit": kw51.RETROFIT_END}
+        try:
+            when = targets.get(req.seek) or datetime.fromisoformat(req.seek).replace(tzinfo=timezone.utc)
+        except ValueError:
+            raise HTTPException(400, "seek must be start, retrofit, post-retrofit or an ISO date")
+        rp.seek(when)
+    return rp.state()
+
+
+class IngestRequest(BaseModel):
+    readings: dict[str, float]
+    t: float | None = None  # unix seconds; defaults to receipt time
+
+
+@app.post("/api/ingest")
+def ingest(req: IngestRequest):
+    """Sensor-gateway ingestion: pushed readings override the model/replay for those sensors (2 min TTL)."""
+    if not req.readings or len(req.readings) > 1000:
+        raise HTTPException(400, "Send 1-1000 readings")
+    unknown = sim.ingest(req.readings, req.t)
+    return {"accepted": len(req.readings) - len(unknown), "unknown": unknown}
 
 
 class AnomalyRequest(BaseModel):

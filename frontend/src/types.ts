@@ -1,7 +1,7 @@
 export type Status = "nominal" | "watch" | "critical";
 
 export interface Geometry {
-  shape: "box" | "cylinder" | "arch";
+  shape: "box" | "cylinder" | "arch" | "arch_rib";
   position: [number, number, number];
   size: [number, number, number];
 }
@@ -45,6 +45,17 @@ export interface Asset {
   sensors: Sensor[];
   occluders: Occluder[];
   uav_home: [number, number, number] | null;
+  region: string;
+  data_source: "simulated" | "replay" | "live";
+  data_note: string;
+}
+
+export interface ReplayState {
+  time: string;
+  phase: string;
+  playing: boolean;
+  hours_per_s: number;
+  progress: number;
 }
 
 export interface Alert {
@@ -106,6 +117,7 @@ export type ServerMessage =
       history: { t: number; readings: Record<string, number> }[];
       alerts: Alert[];
       status: StatusSnapshot;
+      replay: Record<string, ReplayState>;
       findings: Finding[];
       triages: Triage[];
       missions: Mission[];
@@ -113,7 +125,7 @@ export type ServerMessage =
       screens: Screen[];
       lifts: Lift[];
     }
-  | { type: "tick"; t: number; readings: Record<string, number>; status: StatusSnapshot }
+  | { type: "tick"; t: number; readings: Record<string, number>; status: StatusSnapshot; replay: Record<string, ReplayState> }
   | { type: "alert"; alert: Alert }
   | { type: "findings"; added: Finding[]; removed: string[] }
   | { type: "triage"; triage: Triage }

@@ -59,6 +59,9 @@ def box_of(id: str, name: str, g: Geometry) -> Box:
         half = np.array(g.size, dtype=float) / 2
     elif g.shape == "cylinder":
         half = np.array([g.size[0], g.size[1] / 2, g.size[0]], dtype=float)
+    elif g.shape == "arch_rib":  # parabolic rib springing at `position`
+        span, rise, thick = g.size
+        return Box(id, name, c + np.array([-span / 2, 0, -thick / 2]), c + np.array([span / 2, rise, thick / 2]))
     else:  # arch: half-cylinder shell, axis along z
         r, length = g.size[0], g.size[1]
         return Box(id, name, c + np.array([-r, 0, -length / 2]), c + np.array([r, r, length / 2]))

@@ -44,6 +44,8 @@ export const api = {
     }).then(json),
   resetSim: () => fetch("/api/sim/reset", { method: "POST" }).then(json),
   demoReset: () => fetch("/api/demo/reset", { method: "POST" }).then(json),
+  replay: (assetId: string, body: { playing?: boolean; hours_per_s?: number; seek?: string }) =>
+    fetch(`/api/replay/${assetId}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }).then(json),
   vocabulary: () => fetch("/api/inspect/vocabulary").then(json<Concept[]>),
   segment: (file: File, concepts: Concept[], componentId?: string) => {
     const body = new FormData();

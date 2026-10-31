@@ -75,3 +75,11 @@ body {
   color: #fff;
   font-size: 11px;
 }
+.pin-real {
+  margin-left: 6px;
+  padding: 0 5px;
+  border-radius: 3px;
+  background: var(--color-accent);
+  color: #0b0f14;
+  font-size: 11px;
+}

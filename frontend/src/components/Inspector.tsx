@@ -22,7 +22,7 @@ function SensorRow({ sensor }: { sensor: Sensor }) {
       </div>
       <Sparkline sensor={sensor} values={values} />
       <div className="mt-1 text-[11px] text-ink-3">
-        watch ≥ {sensor.watch} · critical ≥ {sensor.critical}
+        {sensor.watch >= 99 ? "informational · no alarm thresholds" : `watch ≥ ${sensor.watch} · critical ≥ ${sensor.critical}`}
       </div>
     </div>
   );
@@ -125,6 +125,7 @@ export function Inspector() {
   const componentStatus = useTwin((s) => s.status.components);
   const sensors = useTwin((s) => s.sensors);
   const selectComponent = useTwin((s) => s.selectComponent);
+  const selectAsset = useTwin((s) => s.selectAsset);
   const findings = useTwin((s) => s.findings);
   const notes = useTwin((s) => s.notes);
 
@@ -139,7 +140,24 @@ export function Inspector() {
     <section className="flex min-h-0 flex-col gap-3 p-3">
       <div>
         <div className="text-[11px] uppercase tracking-wider text-ink-3">Asset</div>
-        <div className="font-semibold text-ink">{asset.name}</div>
+        <select
+          value={asset.id}
+          onChange={(e) => selectAsset(e.target.value)}
+          aria-label="Asset"
+          className="-ml-1 max-w-full rounded border border-transparent bg-transparent px-1 font-semibold text-ink hover:border-line"
+        >
+          {[...new Set(assets.map((a) => a.region))].map((r) => (
+            <optgroup key={r} label={r}>
+              {assets
+                .filter((a) => a.region === r)
+                .map((a) => (
+                  <option key={a.id} value={a.id} className="bg-panel">
+                    {a.name}
+                  </option>
+                ))}
+            </optgroup>
+          ))}
+        </select>
         <p className="text-xs text-ink-2">{asset.description}</p>
       </div>
 

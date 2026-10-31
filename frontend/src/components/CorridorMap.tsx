@@ -59,6 +59,7 @@ export function CorridorMap() {
   const markers = useRef<Record<string, HTMLElement>>({});
   const paths = useRef<PathCollection>({ type: "FeatureCollection", features: [] });
   const pathsReady = useRef(false);
+  const lastRegion = useRef<string | null>(null);
 
   const assets = useTwin((s) => s.assets);
   const assetStatus = useTwin((s) => s.status.assets);
@@ -71,7 +72,7 @@ export function CorridorMap() {
   useEffect(() => {
     if (!container.current || assets.length === 0) return;
     const bounds = new maplibregl.LngLatBounds();
-    assets.forEach((a) => bounds.extend([a.lng, a.lat]));
+    assets.filter((a) => a.region === assets[0].region).forEach((a) => bounds.extend([a.lng, a.lat]));
 
     const m = new maplibregl.Map({
       container: container.current,
@@ -103,7 +104,8 @@ export function CorridorMap() {
     for (const a of assets) {
       const el = document.createElement("button");
       el.className = "pin";
-      el.innerHTML = `<span data-dot class="pin-dot"></span><span class="pin-label">${a.name}<span data-count class="pin-count" hidden></span></span>`;
+      const tag = a.data_source === "simulated" ? "" : `<span class="pin-real">real data</span>`;
+      el.innerHTML = `<span data-dot class="pin-dot"></span><span class="pin-label">${a.name}${tag}<span data-count class="pin-count" hidden></span></span>`;
       el.addEventListener("click", (e) => {
         e.stopPropagation();
         selectAsset(a.id);
@@ -155,14 +157,16 @@ export function CorridorMap() {
   useEffect(() => {
     if (!map.current) return;
     if (selectedAssetId === null && assets.length) {
-      // Back to the corridor overview.
+      // Back to the overview of the region last looked at (regions can be continents apart).
+      const region = lastRegion.current ?? assets[0].region;
       const b = new maplibregl.LngLatBounds();
-      assets.forEach((a) => b.extend([a.lng, a.lat]));
+      assets.filter((a) => a.region === region).forEach((a) => b.extend([a.lng, a.lat]));
       map.current.fitBounds(b, { padding: 80, pitch: 50, bearing: 0, duration: 2000 });
       return;
     }
     const asset = assets.find((a) => a.id === selectedAssetId);
     if (!asset) return;
+    lastRegion.current = asset.region;
     map.current.flyTo({
       center: [asset.lng, asset.lat],
       zoom: 15.5,

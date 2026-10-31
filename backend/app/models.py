@@ -12,9 +12,10 @@ class Geometry(BaseModel):
     box:      size = (width_x, height_y, depth_z)
     cylinder: size = (radius, height, 0)
     arch:     size = (radius, length_z, 0) — half-cylinder shell, axis along z
+    arch_rib: size = (span_x, rise_y, thickness) — parabolic rib in the x-y plane, springing at position
     """
 
-    shape: Literal["box", "cylinder", "arch"]
+    shape: Literal["box", "cylinder", "arch", "arch_rib"]
     position: tuple[float, float, float]
     size: tuple[float, float, float]
 
@@ -60,6 +61,9 @@ class Asset(BaseModel):
     sensors: list[Sensor]
     occluders: list[Occluder] = []
     uav_home: tuple[float, float, float] | None = None  # drone launch point, asset-local metres
+    region: str = "Pune corridor"
+    data_source: Literal["simulated", "replay", "live"] = "simulated"
+    data_note: str = "Simulated sensor data"
 
 
 class Alert(BaseModel):

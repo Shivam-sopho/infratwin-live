@@ -19,11 +19,23 @@ SENSOR_TEMPLATES: dict[str, tuple[str, str, float, float, float]] = {
     "displacement": ("Crest displacement", "mm", 3, 7, 11),
     "wind": ("Wind speed", "m/s", 6, 18, 25),
     "temperature": ("Air temperature", "°C", 26, 40, 46),
+    # KW51 (real data). Raw frequencies are informational; deviations are temperature-compensated residuals.
+    "mode3_hz": ("Mode 3 frequency", "Hz", 1.89, 99, 99),
+    "mode6_hz": ("Mode 6 frequency", "Hz", 2.93, 99, 99),
+    "mode9_hz": ("Mode 9 frequency", "Hz", 4.11, 99, 99),
+    "mode13_hz": ("Mode 13 frequency", "Hz", 6.37, 99, 99),
+    "mode3_dev": ("Mode 3 deviation (temp-compensated)", "σ", 0.7, 3, 5),
+    "mode6_dev": ("Mode 6 deviation (temp-compensated)", "σ", 0.7, 3, 5),
+    "mode9_dev": ("Mode 9 deviation (temp-compensated)", "σ", 0.7, 3, 5),
+    "mode13_dev": ("Mode 13 deviation (temp-compensated)", "σ", 0.7, 3, 5),
+    "steel_temp": ("Steel temperature", "°C", 11, 99, 99),
+    "air_temp": ("Air temperature", "°C", 11, 99, 99),
+    "humidity": ("Relative humidity", "%", 80, 101, 102),
 }
 
 # Sensors that describe the environment / loading rather than structural response;
 # injected structural anomalies leave these untouched.
-ENVIRONMENTAL_KINDS = {"load", "wind", "temperature"}
+ENVIRONMENTAL_KINDS = {"load", "wind", "temperature", "steel_temp", "air_temp", "humidity"}
 
 
 class _Builder:
@@ -187,5 +199,38 @@ def _dam() -> Asset:
     )
 
 
-def build_corridor() -> list[Asset]:
-    return [_bridge(), _tunnel(), _dam()]
+def _kw51() -> Asset:
+    """Illustrative geometry of the KW51 steel bowstring railway bridge; sensor values come from replay."""
+    k = _Builder("KW51")
+    span, deck_y = 110.0, 6.0
+    k.add("DECK", "Deck", "deck", Geometry(shape="box", position=(0, deck_y, 0), size=(span, 1.4, 12)),
+          ["mode3_hz", "mode3_dev", "mode6_hz", "mode6_dev", "steel_temp"])
+    k.add("ARN", "Arch North", "arch_rib", Geometry(shape="arch_rib", position=(0, deck_y + 0.7, -5.5), size=(span, 20, 1.2)),
+          ["mode9_hz", "mode9_dev"])
+    k.add("ARS", "Arch South", "arch_rib", Geometry(shape="arch_rib", position=(0, deck_y + 0.7, 5.5), size=(span, 20, 1.2)),
+          ["mode13_hz", "mode13_dev"])
+    k.add("BW", "Bearings West", "abutment", Geometry(shape="box", position=(-span / 2 - 1.5, deck_y / 2, 0), size=(3, deck_y, 13)), [])
+    k.add("BE", "Bearings East", "abutment", Geometry(shape="box", position=(span / 2 + 1.5, deck_y / 2, 0), size=(3, deck_y, 13)), [])
+    k.add("WX", "Weather Station", "environment", None, ["air_temp", "humidity", "wind"])
+    return Asset(
+        id="KW51",
+        name="Railway Bridge KW51 (real data)",
+        type="bridge",
+        lng=4.6905,
+        lat=50.8875,
+        heading_deg=-30,
+        description="Steel bowstring railway bridge near Leuven, Belgium. Diagonal-to-arch/deck connections were "
+        "strengthened May-Sep 2019. Modal frequencies are global; they are grouped onto members here for display.",
+        components=k.components,
+        sensors=k.sensors,
+        uav_home=(20.0, 2.0, 35.0),
+        region="Leuven (real data)",
+        data_source="replay",
+        data_note="Real monitoring data, replayed: KW51, Oct 2018 - Jan 2020 (Maes & Lombaert, Zenodo 3745914, CC BY-NC-SA 4.0). "
+        "Location approximate.",
+    )
+
+
+def build_corridor(include_kw51: bool = False) -> list[Asset]:
+    assets = [_bridge(), _tunnel(), _dam()]
+    return assets + [_kw51()] if include_kw51 else assets

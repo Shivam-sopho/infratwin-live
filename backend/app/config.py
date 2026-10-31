@@ -40,6 +40,10 @@ class Settings(BaseSettings):
     # Storage (findings, notes, forecasts, lifts) and optional local sample images.
     data_dir: Path = BACKEND_DIR / "data"
     samples_dir: Path = BACKEND_DIR.parent / "demo-media" / "dacl10k"
+    # Real monitoring data for bridge KW51 (trackedmodes.mat from Zenodo 3745914). Asset appears only if present.
+    kw51_path: Path = BACKEND_DIR.parent / "demo-media" / "kw51" / "trackedmodes" / "trackedmodes" / "trackedmodes.mat"
+    kw51_hours_per_s: float = 24.0
+
     # Built UI to serve from the API origin (production). Unset/missing in dev, where Vite serves it.
     frontend_dist: Path = BACKEND_DIR.parent / "frontend" / "dist"
 

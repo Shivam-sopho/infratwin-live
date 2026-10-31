@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { Alert, Asset, Component, Finding, Lift, Mission, Note, Screen, Sensor, ServerMessage, StatusSnapshot, Triage } from "./types";
+import type { Alert, Asset, Component, Finding, Lift, Mission, Note, ReplayState, Screen, Sensor, ServerMessage, StatusSnapshot, Triage } from "./types";
 
 const HISTORY_LEN = 240;
 const EMPTY_STATUS: StatusSnapshot = { sensors: {}, components: {}, assets: {} };
@@ -20,6 +20,7 @@ interface TwinState {
   lifts: Record<string, Lift>;
   timeTravelFindingId: string | null;
   authRequired: boolean;
+  replay: Record<string, ReplayState>;
   setAuthRequired: (v: boolean) => void;
   setTimeTravel: (id: string | null) => void;
   connected: boolean;
@@ -56,6 +57,7 @@ export const useTwin = create<TwinState>((set, get) => ({
   lifts: {},
   timeTravelFindingId: null,
   authRequired: false,
+  replay: {},
   setAuthRequired: (authRequired) => set({ authRequired }),
   setTimeTravel: (timeTravelFindingId) => set({ timeTravelFindingId }),
   connected: false,
@@ -81,7 +83,7 @@ export const useTwin = create<TwinState>((set, get) => ({
         for (const { readings } of msg.history) {
           for (const [id, v] of Object.entries(readings)) (history[id] ??= []).push(v);
         }
-        set({ history, alerts: [...msg.alerts].reverse(), status: msg.status, selectedMissionId: null, findings: msg.findings, triages: msg.triages, missions: msg.missions, notes: msg.notes, screens: Object.fromEntries(msg.screens.map((x) => [x.alert_id, x])),
+        set({ history, alerts: [...msg.alerts].reverse(), status: msg.status, replay: msg.replay ?? {}, selectedMissionId: null, findings: msg.findings, triages: msg.triages, missions: msg.missions, notes: msg.notes, screens: Object.fromEntries(msg.screens.map((x) => [x.alert_id, x])),
           lifts: Object.fromEntries(msg.lifts.map((x) => [x.finding_id, x])),
         });
         break;
@@ -93,7 +95,7 @@ export const useTwin = create<TwinState>((set, get) => ({
           const arr = prev[id] ?? [];
           history[id] = arr.length >= HISTORY_LEN ? [...arr.slice(1), v] : [...arr, v];
         }
-        set({ history, status: msg.status });
+        set({ history, status: msg.status, replay: msg.replay ?? {} });
         break;
       }
       case "alert":
