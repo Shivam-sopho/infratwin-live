@@ -43,5 +43,11 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(items),
     }).then(json<Finding[]>),
+  triage: (alert_id: string) =>
+    fetch("/api/triage", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ alert_id }),
+    }).then(json),
   deleteFinding: (id: string) => fetch(`/api/findings/${id}`, { method: "DELETE" }).then(json),
 };

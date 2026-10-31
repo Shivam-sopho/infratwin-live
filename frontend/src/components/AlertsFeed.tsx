@@ -1,3 +1,4 @@
+import { api } from "../api";
 import { useTwin } from "../store";
 import { StatusBadge } from "./StatusBadge";
 
@@ -6,19 +7,19 @@ const fmtTime = (t: number) => new Date(t * 1000).toLocaleTimeString([], { hour1
 export function AlertsFeed() {
   const alerts = useTwin((s) => s.alerts);
   const selectComponent = useTwin((s) => s.selectComponent);
+  const triages = useTwin((s) => s.triages);
+  const setSideTab = useTwin((s) => s.setSideTab);
+  const triageOf = Object.fromEntries(triages.map((t) => [t.alert_id, t]));
 
   return (
-    <section className="flex min-h-0 flex-col">
-      <h2 className="border-b border-line px-3 py-2 text-[11px] uppercase tracking-wider text-ink-3">
-        Alerts <span className="tabular-nums">({alerts.length})</span>
-      </h2>
+    <section className="flex min-h-0 flex-1 flex-col">
       <ul className="min-h-0 flex-1 overflow-y-auto">
         {alerts.length === 0 && <li className="px-3 py-3 text-xs text-ink-3">No alerts. All monitored components nominal.</li>}
         {alerts.map((a) => (
           <li key={a.id}>
             <button
               onClick={() => selectComponent(a.component_id)}
-              className="w-full border-b border-line/60 px-3 py-2 text-left hover:bg-white/[0.03]"
+              className="w-full px-3 py-2 text-left hover:bg-white/[0.03]"
             >
               <div className="flex items-center justify-between">
                 <StatusBadge status={a.level} />
@@ -28,6 +29,21 @@ export function AlertsFeed() {
               </div>
               <div className="mt-0.5 text-xs text-ink">{a.message}</div>
             </button>
+            <div className="-mt-1 border-b border-line/60 px-3 pb-2 text-[11px]">
+              {triageOf[a.id] ? (
+                <button className="text-accent hover:underline" onClick={() => setSideTab("twin")}>
+                  {triageOf[a.id].status === "running"
+                    ? "Cognitive Twin assessing…"
+                    : triageOf[a.id].status === "done"
+                      ? `Assessed: ${triageOf[a.id].result?.severity} severity →`
+                      : "Assessment failed →"}
+                </button>
+              ) : (
+                <button className="text-ink-3 hover:text-ink" onClick={() => void api.triage(a.id)}>
+                  Ask the Cognitive Twin
+                </button>
+              )}
+            </div>
           </li>
         ))}
       </ul>

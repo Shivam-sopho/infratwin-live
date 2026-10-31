@@ -1,4 +1,4 @@
-import type { ConceptCategory, Status } from "./types";
+import type { ConceptCategory, Status, TriageResult } from "./types";
 
 export const STATUS_COLOR: Record<Status, string> = {
   nominal: "#22c55e",
@@ -24,4 +24,12 @@ export const CONCRETE = "#a8a29e";
 export const CATEGORY_COLOR: Record<ConceptCategory, string> = {
   structural: "#3b82f6",
   defect: "#ea580c",
+};
+
+// Triage severity rides on the status palette (always shown with its icon + label).
+export const SEVERITY_STATUS: Record<TriageResult["severity"], Status> = {
+  low: "nominal",
+  moderate: "watch",
+  high: "critical",
+  critical: "critical",
 };

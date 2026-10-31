@@ -19,11 +19,14 @@ from .models import Asset
 from .sam31 import DEFAULT_CONCEPTS, Concept, SegmentationReport, prepare_image, segment_image
 from .sam31_video import VideoReport, segment_video, transcode
 from .simulator import Simulator
+from .triage import CognitiveTwin, find_alert
 
 ASSETS = build_corridor()
 sim = Simulator(ASSETS)
 findings = FindingStore(Path(__file__).resolve().parent.parent / "data" / "findings.json")
 ASSET_OF_COMPONENT = {c.id: a.id for a in ASSETS for c in a.components}
+twin = CognitiveTwin(sim, lambda: findings.all(), auto=settings.triage_auto)
+sim.alert_listeners.append(twin.on_alert)
 
 
 @asynccontextmanager
@@ -171,10 +174,28 @@ async def delete_finding(finding_id: str):
     return {"ok": True}
 
 
+class TriageRequest(BaseModel):
+    alert_id: str
+
+
+@app.post("/api/triage")
+async def triage_alert(req: TriageRequest):
+    """Manually ask the Cognitive Twin to assess an alert (bypasses the auto-trigger cooldown)."""
+    if not meta.configured:
+        raise HTTPException(503, "MODEL_API_KEY is not set")
+    alert = find_alert(sim, req.alert_id)
+    if alert is None:
+        raise HTTPException(404, f"Unknown alert {req.alert_id}")
+    twin.start(alert)
+    return {"ok": True}
+
+
 @app.websocket("/ws/telemetry")
 async def telemetry(ws: WebSocket):
     await ws.accept()
-    await ws.send_json({**sim.snapshot(), "findings": [f.model_dump() for f in findings.all()]})
+    await ws.send_json(
+        {**sim.snapshot(), "findings": [f.model_dump() for f in findings.all()], "triages": twin.snapshot()}
+    )
     sim.clients.add(ws)
     try:
         while True:

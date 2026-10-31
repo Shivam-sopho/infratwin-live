@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { api } from "./api";
-import { AlertsFeed } from "./components/AlertsFeed";
+import { SideFeed } from "./components/SideFeed";
 import { CorridorMap } from "./components/CorridorMap";
 import { Inspector } from "./components/Inspector";
 import { TopBar } from "./components/TopBar";
@@ -24,11 +24,11 @@ export default function App() {
         <div className="h-[50vh] border-b border-line lg:h-auto lg:border-r lg:border-b-0">
           <CenterPane />
         </div>
-        <aside className="grid min-h-0 grid-rows-[minmax(0,1.6fr)_minmax(0,1fr)] bg-panel">
+        <aside className="grid min-h-0 grid-rows-[minmax(0,1.25fr)_minmax(0,1fr)] bg-panel">
           <div className="min-h-0 overflow-y-auto border-b border-line">
             <Inspector />
           </div>
-          <AlertsFeed />
+          <SideFeed />
         </aside>
       </main>
     </div>

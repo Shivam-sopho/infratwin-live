@@ -80,10 +80,13 @@ export type ServerMessage =
       alerts: Alert[];
       status: StatusSnapshot;
       findings: Finding[];
+      triages: Triage[];
     }
   | { type: "tick"; t: number; readings: Record<string, number>; status: StatusSnapshot }
   | { type: "alert"; alert: Alert }
-  | { type: "findings"; added: Finding[]; removed: string[] };
+  | { type: "findings"; added: Finding[]; removed: string[] }
+  | { type: "triage"; triage: Triage }
+  | { type: "triage_delta"; id: string; delta: string };
 
 export type ConceptCategory = "structural" | "defect";
 
@@ -149,4 +152,29 @@ export interface VideoReport {
   concepts: ConceptRun[];
   tracks: Track[];
   est_cost_usd: number;
+}
+
+export interface TriageResult {
+  severity: "low" | "moderate" | "high" | "critical";
+  summary: string;
+  likely_causes: string[];
+  evidence: string[];
+  recommended_actions: string[];
+  visual_audit_needed: boolean;
+  visual_audit_target: string;
+  confidence: number;
+}
+
+export interface Triage {
+  id: string;
+  t: number;
+  alert_id: string;
+  asset_id: string;
+  component_id: string;
+  model: string;
+  status: "running" | "done" | "error";
+  reasoning: string;
+  result: TriageResult | null;
+  error: string | null;
+  ms: number | null;
 }

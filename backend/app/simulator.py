@@ -9,6 +9,7 @@ import math
 import random
 import time
 from collections import deque
+from collections.abc import Awaitable, Callable
 
 from fastapi import WebSocket
 
@@ -51,6 +52,8 @@ class Simulator:
         self.history: deque[tuple[float, dict[str, float]]] = deque(maxlen=HISTORY_TICKS)
         self.alerts: deque[Alert] = deque(maxlen=50)
         self.clients: set[WebSocket] = set()
+        self.alert_listeners: list[Callable[[Alert], Awaitable[None]]] = []
+        self._tasks: set[asyncio.Task] = set()
 
     # --- control -----------------------------------------------------------
 
@@ -140,6 +143,9 @@ class Simulator:
             tick, new_alerts = self.step()
             await self.broadcast(tick)
             for alert in new_alerts:
-                # Hook point for Muse Glimmer / Spark anomaly triage.
                 await self.broadcast({"type": "alert", "alert": alert.model_dump()})
+                for listener in self.alert_listeners:
+                    task = asyncio.create_task(listener(alert))
+                    self._tasks.add(task)
+                    task.add_done_callback(self._tasks.discard)
             await asyncio.sleep(interval)

@@ -13,6 +13,9 @@ class Settings(BaseSettings):
     # Seconds after startup to auto-inject the scripted Pier 4 anomaly (0 = off).
     sim_auto_anomaly_s: float = 0.0
 
+    # Cognitive Twin: auto-triage critical alerts with Muse Spark.
+    triage_auto: bool = True
+
     cors_origins: list[str] = ["http://localhost:5173", "http://127.0.0.1:5173"]
 
 

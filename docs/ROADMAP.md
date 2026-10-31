@@ -11,7 +11,7 @@ Build order: each step ships a working, demoable increment on top of the foundat
 | 4 | Union-Find Scan-to-BIM component clustering (replaces placeholder geometry) | — | ⬜ |
 | 5 | Hierarchical refinement: coarse structure + hi-res defect patch, compute-savings badge | — | ⬜ |
 | 6 | Normal-gradient raycasting metrology (area, perimeter, crack width, inclination) | Muse Spark Open | ⬜ |
-| 7 | Anomaly triage + Cognitive Twin reasoning panel (streamed) | `muse-spark-1.3` / Glimmer | ⬜ |
+| 7 | Cognitive Twin: Muse Spark triage of critical alerts with streamed reasoning + structured assessment (Glimmer first-pass pending hosting) | `muse-spark-1.3` / Glimmer | ✅ Spark · ⬜ Glimmer |
 | 8 | Occlusion-adaptive UAV re-planner (Algorithm 2), 3D flight path on twin + map | `muse-wonder-1.0` | ⬜ |
 | 9 | Voice field commands → tool calls / geo-pinned notes | `muse-voice-transcribe-1.0` | ⬜ |
 | 10 | Time-travel deterioration + repair preview | `muse-image-1.0` | ⬜ |
@@ -30,5 +30,9 @@ Build order: each step ships a working, demoable increment on top of the foundat
 - **SAM 3.1 video**: clip uploaded via `POST /files` (purpose `user_data`), referenced as `input_video.file_id`.
   We re-encode to 5 fps / ≤20 s / ≤960 px H.264 with PyAV first (bills per frame, min 50 frames per request),
   baking in phone rotation metadata. Parse with `video_segmentation_format`; object ids are stable → tracks.
+- **Muse Spark (Responses API)**: `reasoning: {effort, summary: "concise"}` streams
+  `response.reasoning_summary_text.delta` (raw chain of thought is never exposed); structured output via
+  `text.format = {type: "json_schema", name, schema, strict: true}` (strict: root object, additionalProperties false,
+  every property required).
 - **Muse Image**: `POST /images/generations` and `/images/edits` (`images: [{image_url}]`), $0.01/image.
 - **Voice**: `POST /asr/transcribe` multipart (`request` JSON + `audio` WAV, ≤10 min). Browser audio must be converted to WAV.
