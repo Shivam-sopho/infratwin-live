@@ -1,5 +1,6 @@
+import { api } from "../api";
 import { useTwin } from "../store";
-import type { Sensor } from "../types";
+import type { Finding, Sensor } from "../types";
 import { Sparkline } from "./Sparkline";
 import { StatusBadge } from "./StatusBadge";
 
@@ -24,6 +25,44 @@ function SensorRow({ sensor }: { sensor: Sensor }) {
   );
 }
 
+const fmtTime = (t: number) => new Date(t * 1000).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false });
+
+function FindingCard({ f }: { f: Finding }) {
+  const selected = useTwin((s) => s.selectedFindingId === f.id);
+  const selectFinding = useTwin((s) => s.selectFinding);
+  return (
+    <div
+      onClick={() => selectFinding(f.id)}
+      className={`flex cursor-pointer gap-2 rounded-md border p-1.5 ${selected ? "border-defect bg-defect/10" : "border-line bg-bg/60 hover:border-ink-3"}`}
+    >
+      <img src={f.thumbnail} alt={`${f.concept} thumbnail`} className="h-14 w-14 shrink-0 rounded object-cover" />
+      <div className="min-w-0 flex-1 text-[11px] leading-snug">
+        <div className="flex items-baseline justify-between gap-1">
+          <span className="truncate text-xs font-medium text-ink">{f.concept}</span>
+          <button
+            aria-label={`Delete ${f.id}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              void api.deleteFinding(f.id);
+            }}
+            className="text-ink-3 hover:text-ink"
+          >
+            ×
+          </button>
+        </div>
+        <div className="text-ink-2">
+          {f.id}
+          {f.confidence != null && ` · conf ${f.confidence.toFixed(2)}`}
+          {f.host_label && ` · on ${f.host_label}`}
+        </div>
+        <div className="truncate text-ink-3">
+          {f.source === "video" ? `video, ${f.frames_tracked} frames` : "photo"} · {f.source_name} · {fmtTime(f.t)}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function Inspector() {
   const assets = useTwin((s) => s.assets);
   const selectedAssetId = useTwin((s) => s.selectedAssetId);
@@ -31,10 +70,14 @@ export function Inspector() {
   const componentStatus = useTwin((s) => s.status.components);
   const sensors = useTwin((s) => s.sensors);
   const selectComponent = useTwin((s) => s.selectComponent);
+  const findings = useTwin((s) => s.findings);
 
   const asset = assets.find((a) => a.id === selectedAssetId) ?? assets[0];
   if (!asset) return null;
   const comp = asset.components.find((c) => c.id === selectedComponentId);
+  const findingCount: Record<string, number> = {};
+  for (const f of findings) findingCount[f.component_id] = (findingCount[f.component_id] ?? 0) + 1;
+  const compFindings = comp ? findings.filter((f) => f.component_id === comp.id).sort((a, b) => b.t - a.t) : [];
 
   return (
     <section className="flex min-h-0 flex-col gap-3 p-3">
@@ -54,6 +97,12 @@ export function Inspector() {
             }`}
           >
             <StatusBadge status={componentStatus[c.id] ?? "nominal"} compact /> <span className="ml-0.5">{c.name}</span>
+            {findingCount[c.id] ? (
+              <span className="ml-1 inline-flex items-center gap-0.5 text-ink-2" title={`${findingCount[c.id]} pinned findings`}>
+                <span className="inline-block h-1.5 w-1.5 rounded-sm bg-defect" />
+                {findingCount[c.id]}
+              </span>
+            ) : null}
           </button>
         ))}
       </div>
@@ -66,6 +115,12 @@ export function Inspector() {
           {comp.sensor_ids.map((id) => (
             <SensorRow key={id} sensor={sensors[id]} />
           ))}
+          <div className="mt-1 text-[11px] uppercase tracking-wider text-ink-3">Inspection findings ({compFindings.length})</div>
+          {compFindings.length === 0 ? (
+            <p className="text-xs text-ink-3">None pinned. Run SAM 3.1 in the Inspection tab and pin defects here.</p>
+          ) : (
+            compFindings.map((f) => <FindingCard key={f.id} f={f} />)
+          )}
         </div>
       ) : (
         <p className="text-xs text-ink-3">Select a component in the twin or the list above to see its live sensors.</p>

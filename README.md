@@ -19,6 +19,11 @@ and Muse models for metrology, drone re-planning, voice logging and deterioratio
 - **SAM 3.1 inspection** (Inspection tab): one frame is segmented against two vocabularies, structural elements
   (pier, girder, deck…) and dacl10k surface defects (crack, spalling, exposed rebar…), fanned out concurrently.
   Each defect is attributed to the element its mask overlaps most, e.g. "concrete crack #0 on concrete pier #1 · 87%"
+- **SAM 3.1 video tracking**: drone or walk-through clips are resampled to 5 fps and each defect is tracked across frames,
+  with overlays synced to playback
+- **Findings pinned to the twin**: confirmed defects are pinned to the component the frame was captured at. They show
+  as patches on the 3D twin (selecting one zooms the camera there), as counts on the map pins, and as a thumbnail log
+  in the inspector. Patch placement is approximate (taken from the 2D frame position) until SAM 3D lifting
 
 ## Quick start
 
@@ -41,6 +46,8 @@ backend/            FastAPI (Python 3.12, uv)
   app/simulator.py    telemetry sim, health roll-up, alerts, WS fan-out
   app/meta_client.py  Meta Model API client (Responses API, SSE streaming)
   app/sam31.py        SAM 3.1 dual-vocabulary segmentation + defect→element attribution
+  app/sam31_video.py  clip transcoding (PyAV) + SAM 3.1 video tracking → per-defect tracks
+  app/findings.py     findings pinned to components (persisted to backend/data/findings.json)
 frontend/           Vite + React 19 + TypeScript + Tailwind v4
   src/components/     CorridorMap, TwinViewer, InspectionPanel, Inspector, AlertsFeed, Sparkline
 modal_workers/      SAM 3D Objects / Body GPU services (coming)

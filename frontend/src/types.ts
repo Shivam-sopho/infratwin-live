@@ -55,10 +55,35 @@ export interface StatusSnapshot {
   assets: Record<string, Status>;
 }
 
+export interface Finding {
+  id: string;
+  t: number;
+  asset_id: string;
+  component_id: string;
+  concept: string;
+  confidence: number | null;
+  area_px: number;
+  source: "image" | "video";
+  source_name: string;
+  bbox_uv: [number, number, number, number];
+  host_label: string | null;
+  frames_tracked: number | null;
+  thumbnail: string;
+}
+
+export type FindingIn = Omit<Finding, "id" | "t" | "asset_id">;
+
 export type ServerMessage =
-  | { type: "snapshot"; history: { t: number; readings: Record<string, number> }[]; alerts: Alert[]; status: StatusSnapshot }
+  | {
+      type: "snapshot";
+      history: { t: number; readings: Record<string, number> }[];
+      alerts: Alert[];
+      status: StatusSnapshot;
+      findings: Finding[];
+    }
   | { type: "tick"; t: number; readings: Record<string, number>; status: StatusSnapshot }
-  | { type: "alert"; alert: Alert };
+  | { type: "alert"; alert: Alert }
+  | { type: "findings"; added: Finding[]; removed: string[] };
 
 export type ConceptCategory = "structural" | "defect";
 
@@ -93,5 +118,35 @@ export interface SegmentationReport {
   height: number;
   concepts: ConceptRun[];
   detections: Detection[];
+  est_cost_usd: number;
+}
+
+export interface TrackFrame {
+  f: number;
+  box: [number, number, number, number];
+  confidence: number | null;
+  area_px: number;
+  mask: Detection["mask"];
+}
+
+export interface Track {
+  id: string;
+  concept: string;
+  category: ConceptCategory;
+  frames: TrackFrame[];
+  best_frame: number;
+  confidence: number | null;
+  host_id: string | null;
+  host_overlap: number | null;
+}
+
+export interface VideoReport {
+  model: string;
+  width: number;
+  height: number;
+  fps: number;
+  n_frames: number;
+  concepts: ConceptRun[];
+  tracks: Track[];
   est_cost_usd: number;
 }

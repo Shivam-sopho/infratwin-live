@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useTwin } from "../store";
 import { InspectionPanel } from "./InspectionPanel";
 import { TwinViewer } from "./TwinViewer";
 
@@ -8,7 +8,8 @@ const TABS = [
 ] as const;
 
 export function CenterPane() {
-  const [tab, setTab] = useState<(typeof TABS)[number]["id"]>("twin");
+  const tab = useTwin((s) => s.centerTab);
+  const setTab = useTwin((s) => s.setCenterTab);
   return (
     <div className="flex h-full flex-col">
       <div className="flex border-b border-line bg-panel" role="tablist">

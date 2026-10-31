@@ -12,6 +12,7 @@ dependencies = [
     "numpy>=2.4.6",
     "pillow>=13.0.0",
     "python-multipart>=0.0.32",
+    "av>=18.1.0",
 ]
 
 [dependency-groups]

@@ -1,4 +1,4 @@
-import type { Asset, Concept, SegmentationReport } from "./types";
+import type { Asset, Concept, Finding, FindingIn, SegmentationReport, VideoReport } from "./types";
 
 async function json<T>(res: Response): Promise<T> {
   if (!res.ok) {
@@ -31,4 +31,17 @@ export const api = {
     body.append("concepts", JSON.stringify(concepts));
     return fetch("/api/inspect/segment", { method: "POST", body }).then(json<SegmentationReport>);
   },
+  segmentVideo: (file: File, concepts: Concept[]) => {
+    const body = new FormData();
+    body.append("file", file);
+    body.append("concepts", JSON.stringify(concepts));
+    return fetch("/api/inspect/segment-video", { method: "POST", body }).then(json<VideoReport>);
+  },
+  addFindings: (items: FindingIn[]) =>
+    fetch("/api/findings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(items),
+    }).then(json<Finding[]>),
+  deleteFinding: (id: string) => fetch(`/api/findings/${id}`, { method: "DELETE" }).then(json),
 };

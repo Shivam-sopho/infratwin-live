@@ -11,6 +11,8 @@
   --color-nominal: #22c55e;
   --color-watch: #eab308;
   --color-critical: #ef4444;
+  --color-structural: #3b82f6;
+  --color-defect: #ea580c;
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
 }
 
@@ -64,4 +66,12 @@ body {
   .pin-critical {
     animation: none;
   }
+}
+.pin-count {
+  margin-left: 6px;
+  padding: 0 5px;
+  border-radius: 3px;
+  background: var(--color-defect);
+  color: #fff;
+  font-size: 11px;
 }

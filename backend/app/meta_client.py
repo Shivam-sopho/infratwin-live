@@ -55,6 +55,21 @@ class MetaClient:
                     if data and data != "[DONE]":
                         yield json.loads(data)
 
+    async def upload_file(self, path: str, filename: str, content_type: str, purpose: str = "user_data") -> str:
+        """POST /files; returns the file id."""
+        if not self.configured:
+            raise MetaAPIError("MODEL_API_KEY is not set")
+        with open(path, "rb") as f:
+            r = await self._http.post(
+                "/files", files={"file": (filename, f, content_type)}, data={"purpose": purpose}, timeout=300
+            )
+        if r.status_code >= 400:
+            raise MetaAPIError(f"{r.status_code}: {r.text[:500]}")
+        return r.json()["id"]
+
+    async def delete_file(self, file_id: str) -> None:
+        await self._http.delete(f"/files/{file_id}")
+
     @staticmethod
     def output_text(response: dict) -> str:
         parts = [
