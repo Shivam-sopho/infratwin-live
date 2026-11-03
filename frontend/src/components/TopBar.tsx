@@ -17,6 +17,7 @@ function Pill({ ok, label }: { ok: boolean; label: string }) {
 export function TopBar() {
   const connected = useTwin((s) => s.connected);
   const presenting = useTwin((s) => s.tourOpen);
+  const view = useTwin((s) => s.view);
   const [health, setHealth] = useState({ meta: false, glimmer: false, sparkOpen: false, modal: false, spent: 0, cap: 0 });
 
   useEffect(() => {
@@ -52,7 +53,25 @@ export function TopBar() {
     <header className="flex h-12 items-center gap-4 border-b border-line bg-panel px-4">
       <div className="flex items-baseline gap-2">
         <span className="font-semibold tracking-tight text-ink">InfraTwin-Live</span>
-        <span className="hidden text-xs text-ink-3 md:inline">Geo-anchored structural health digital twin</span>
+        <span className="hidden text-xs text-ink-3 xl:inline">Geo-anchored structural health digital twin</span>
+      </div>
+      <div className="flex overflow-hidden rounded-md border border-line text-xs" role="tablist" aria-label="View">
+        {(
+          [
+            ["corridor", "Corridor"],
+            ["globe", "Global"],
+          ] as const
+        ).map(([v, label]) => (
+          <button
+            key={v}
+            role="tab"
+            aria-selected={view === v}
+            onClick={() => useTwin.getState().setView(v)}
+            className={`px-2.5 py-1 ${view === v ? "bg-accent text-bg" : "text-ink-2 hover:text-ink"}`}
+          >
+            {label}
+          </button>
+        ))}
       </div>
       <div className={`ml-auto flex items-center gap-2 ${presenting ? "[&>*:not(.keep)]:hidden" : ""}`}>
         <Pill ok={connected} label={connected ? "Telemetry live" : "Telemetry offline"} />

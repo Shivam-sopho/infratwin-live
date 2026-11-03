@@ -17,7 +17,7 @@ from fastapi.staticfiles import StaticFiles
 from PIL import Image, UnidentifiedImageError
 from pydantic import BaseModel, TypeAdapter, ValidationError
 
-from . import auth
+from . import auth, fleet
 from .budget import COST, BudgetExceeded, budget
 from .config import settings
 from .corridor import build_corridor
@@ -141,6 +141,25 @@ def health():
 @app.get("/api/assets", response_model=list[Asset])
 def list_assets():
     return ASSETS
+
+
+@app.get("/api/fleet/sites")
+def fleet_sites():
+    """Real structures for the global view (Wikidata, CC0); sent once."""
+    return {"source": "Wikidata (CC0)", "sites": fleet.sites()}
+
+
+@app.get("/api/fleet/state")
+def fleet_state():
+    """Simulated portfolio condition, merged with the corridor twins' live status."""
+    status = sim.status()["assets"]
+    live = [
+        {"id": a.id, "name": a.name, "kind": a.type, "lng": a.lng, "lat": a.lat, "status": status.get(a.id, "nominal"),
+         "sensors": len(a.sensors), "site": a.site.name if a.site else None, "data_source": a.data_source,
+         "region": a.region}
+        for a in ASSETS
+    ]
+    return fleet.state(live)
 
 
 class ReplayControl(BaseModel):

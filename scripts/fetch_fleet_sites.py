@@ -23,6 +23,19 @@ QUERY = """SELECT ?item (SAMPLE(?l) AS ?label) (SAMPLE(?c) AS ?coord) (SAMPLE(?c
   OPTIONAL { ?item wdt:P17 ?co. ?co rdfs:label ?cl. FILTER(LANG(?cl) = "en") }
 } GROUP BY ?item ORDER BY DESC(?links) LIMIT %d"""
 KINDS = [("bridge", "Q12280", 8, 450), ("tunnel", "Q44377", 6, 120), ("dam", "Q12323", 8, 150)]
+# Not working infrastructure today, so never given simulated live alerts: collapsed or demolished, ancient or
+# ruined, proposed or unfinished, in active conflict zones, or not a structure at all.
+EXCLUDE = {
+    "Polcevera Viaduct", "Francis Scott Key Bridge", "I-35W Mississippi River bridge", "Silver Bridge", "Tappan Zee Bridge",
+    "Ludendorff Bridge", "Antonivka Road Bridge", "Crimean Bridge", "Bridge of No Return", "Trajan's Bridge", "Pons Aemilius",
+    "Pons Sublicius", "Bridge near Limyra", "Kazarma Mycenaean Bridge", "Euphrates Tunnel", "Katarina Elevator", "Murinsel",
+    "Muntplein", "South Stack", "Grand Canyon Skywalk", "Malpasset Dam", "Vajont Dam", "Banqiao Dam", "Marib Dam",
+    "Sadd el-Kafara", "Usoi Dam", "Grand Inga Dam", "Kinderdijk", "Tishrin Dam", "Kadiran Dam", "Ynys Gored Goch",
+    "Helsinki-to-Tallinn Tunnel", "Japan–Korea Undersea Tunnel", "Sakhalin Tunnel", "Stad Ship Tunnel", "Operation Gold",
+    "Tunnel 57", "Third Tunnel of Aggression", "Hezekiah's Tunnel", "tunnel of Eupalinos", "Crypta Neapolitana",
+    "Western Wall Tunnel", "Sarajevo Tunnel", "Passetto di Borgo", "Fehmarn Belt fixed link", "Brenner Base Tunnel",
+    "Semmering Base Tunnel", "Big Dig", "East Side Access", "Tower Subway",
+}
 
 
 def fetch(kind: str, qid: str, min_links: int, limit: int) -> dict:
@@ -46,7 +59,7 @@ def main() -> None:
             q = row["item"]["value"].rsplit("/", 1)[1]
             m = re.match(r"Point\(([-\d.eE]+) ([-\d.eE]+)\)", row["coord"]["value"])
             name = row["label"]["value"]
-            if q in seen or not m or re.search(r"\b(line|railway|station)\b", name, re.I):
+            if q in seen or not m or name in EXCLUDE or re.search(r"\b(line|railway|station)\b", name, re.I):
                 continue
             seen.add(q)
             sites.append({

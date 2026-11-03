@@ -11,6 +11,15 @@ export interface Stage {
   spot: string[]; // data-spot names to highlight
 }
 
+export type View = "corridor" | "globe";
+/** Where the globe should fly (set by the demo or the dashboard lists). */
+export interface GlobeTarget {
+  lng: number;
+  lat: number;
+  zoom: number;
+  at: number;
+}
+
 export interface Capabilities {
   meta: boolean;
   glimmer: boolean;
@@ -41,6 +50,10 @@ interface TwinState {
   setCaps: (c: Capabilities) => void;
   inspectRequest: { sample: string; nonce: number } | null;
   tourOpen: boolean;
+  view: View;
+  setView: (v: View) => void;
+  globeTarget: GlobeTarget | null;
+  flyGlobe: (lng: number, lat: number, zoom: number) => void;
   setTourOpen: (v: boolean) => void;
   stage: Stage;
   setStage: (s: Stage) => void;
@@ -96,6 +109,10 @@ export const useTwin = create<TwinState>((set, get) => ({
   setTourOpen: (tourOpen) => set(tourOpen ? { tourOpen } : { tourOpen, stage: { focus: null, spot: [] } }),
   stage: { focus: null, spot: [] },
   setStage: (stage) => set({ stage }),
+  view: "corridor",
+  setView: (view) => set({ view }),
+  globeTarget: null,
+  flyGlobe: (lng, lat, zoom) => set({ globeTarget: { lng, lat, zoom, at: Date.now() } }),
   inspection: { status: "idle", at: 0 },
   setInspection: (status) => set({ inspection: { status, at: Date.now() } }),
   ttStop: 0,

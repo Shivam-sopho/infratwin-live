@@ -130,3 +130,38 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .app-grid, .spotlight { transition: none; }
 }
+
+/* global view */
+.globe-pop {
+  font: 12px/1.4 var(--font-sans);
+  color: var(--color-ink);
+}
+.globe-pop-kind {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-ink-3);
+}
+.globe-pop-name {
+  font-weight: 600;
+  font-size: 13px;
+}
+.globe-pop-line {
+  color: var(--color-ink-2);
+}
+.maplibregl-popup-content:has(.globe-pop) {
+  background: var(--color-panel);
+  border: 1px solid var(--color-line);
+}
+.maplibregl-popup-tip {
+  display: none;
+}
+.feed-in {
+  animation: feed-in 500ms ease;
+}
+@keyframes feed-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}

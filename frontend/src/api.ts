@@ -1,4 +1,4 @@
-import type { Asset, SampleItem, Concept, Finding, FindingIn, Forecast, Lift, Scenario, SegmentationReport, Verification, VideoReport, VoiceResult, WorkZoneReport } from "./types";
+import type { Asset, FleetSite, FleetState, SampleItem, Concept, Finding, FindingIn, Forecast, Lift, Scenario, SegmentationReport, Verification, VideoReport, VoiceResult, WorkZoneReport } from "./types";
 
 /** Called on any 401 so the app can show the login gate. */
 let onUnauthorized: () => void = () => undefined;
@@ -21,6 +21,8 @@ async function json<T>(res: Response): Promise<T> {
 
 export const api = {
   assets: () => fetch("/api/assets").then(json<Asset[]>),
+  fleetSites: () => fetch("/api/fleet/sites").then(json<{ source: string; sites: FleetSite[] }>),
+  fleetState: () => fetch("/api/fleet/state").then(json<FleetState>),
   health: () =>
     fetch("/api/health").then(
       json<{

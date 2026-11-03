@@ -10,6 +10,7 @@ import { CorridorMap } from "./components/CorridorMap";
 import { Inspector } from "./components/Inspector";
 import { TopBar } from "./components/TopBar";
 import { CenterPane } from "./components/CenterPane";
+import { GlobeView } from "./components/GlobeView";
 import { useTwin } from "./store";
 import { useTelemetry } from "./useTelemetry";
 
@@ -21,6 +22,7 @@ export default function App() {
   }, []);
 
   const presenting = useTwin((s) => s.tourOpen);
+  const view = useTwin((s) => s.view);
   const focus = useTwin((s) => s.stage.focus);
   // Presentation "camera": the panel the story is about gets the space (animated on large screens).
   const columns = { map: "2.4fr 1fr 0px", center: "0.45fr 2.2fr 0px", "twin+side": "0.5fr 1.6fr 460px" }[focus ?? "map"];
@@ -28,7 +30,13 @@ export default function App() {
   return (
     <div className={`flex h-dvh flex-col bg-bg text-ink ${presenting ? "pb-[124px]" : ""}`}>
       <TopBar />
+      {view === "globe" && (
+        <div className="min-h-0 flex-1">
+          <GlobeView />
+        </div>
+      )}
       <main
+        hidden={view === "globe"}
         className="app-grid grid min-h-0 flex-1 grid-cols-1 overflow-y-auto lg:overflow-hidden"
         style={{ "--cols": focus ? columns : "1fr 1fr 380px" } as React.CSSProperties}
       >

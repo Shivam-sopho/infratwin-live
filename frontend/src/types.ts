@@ -388,3 +388,67 @@ export interface SampleItem {
   height: number | null;
   boxes: { label: string; bbox_xywh_norm: [number, number, number, number] }[];
 }
+
+/** Global portfolio: real structures (Wikidata) with simulated condition; the corridor twins are live. */
+export interface FleetSite {
+  id: string;
+  name: string;
+  kind: "bridge" | "tunnel" | "dam";
+  country: string;
+  lng: number;
+  lat: number;
+  sensors: number;
+}
+
+export interface FleetRepair {
+  task: string;
+  progress: number; // 0..1
+  crew: number;
+  eta_days: number;
+}
+
+export interface FleetCondition {
+  id: string;
+  status: Status;
+  issue: string | null;
+  repair: FleetRepair | null;
+}
+
+export interface FleetLive {
+  id: string;
+  name: string;
+  kind: "bridge" | "tunnel" | "dam";
+  lng: number;
+  lat: number;
+  status: Status;
+  sensors: number;
+  site: string | null;
+  data_source: "simulated" | "replay" | "live";
+  region: string;
+}
+
+export interface FleetEvent {
+  t: number;
+  site_id: string;
+  name: string;
+  country: string;
+  level: "critical" | "watch" | "repair" | "info";
+  text: string;
+}
+
+export interface FleetState {
+  t: number;
+  conditions: FleetCondition[];
+  live: FleetLive[];
+  events: FleetEvent[];
+  summary: {
+    structures: number;
+    countries: number;
+    sensors: number;
+    sensors_online: number;
+    critical: number;
+    watch: number;
+    nominal: number;
+    repairs: number;
+  };
+}
