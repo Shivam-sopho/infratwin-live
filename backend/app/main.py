@@ -633,6 +633,9 @@ async def demo_reset():
     Pinned findings, notes, lifts and forecasts are kept: they are the inspection record.
     """
     sim.reset(clear_history=True)
+    for rp in sim.replays.values():  # rewind: a replay paused mid-retrofit would re-alarm immediately
+        rp.playing = False
+        rp.seek(rp.data.start)
     twin.reset()
     screener.screens.clear()
     planner.missions.clear()

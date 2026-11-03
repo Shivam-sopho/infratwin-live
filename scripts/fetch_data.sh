@@ -35,4 +35,9 @@ if [ ! -d demo-media/kw51/traindata/traindata_201810 ]; then
   curl -fsSL -o demo-media/kw51/traindata_201810.zip "https://zenodo.org/records/3745914/files/traindata_201810.zip"
   unzip -oq demo-media/kw51/traindata_201810.zip -d demo-media/kw51/traindata
 fi
+echo "Kokoro TTS model for demo narration (open-source, Apache 2.0, ~340 MB)…"
+mkdir -p demo-media/tts
+K=https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.0
+[ -f demo-media/tts/voices-v1.0.bin ] || curl -fsSL -o demo-media/tts/voices-v1.0.bin "$K/voices-v1.0.bin"
+[ -f demo-media/tts/kokoro-v1.0.onnx ] || curl -fsSL -o demo-media/tts/kokoro-v1.0.onnx "$K/kokoro-v1.0.onnx"
 echo "Done. Restart the backend to load KW51 and the sample library."

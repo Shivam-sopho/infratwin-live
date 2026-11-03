@@ -85,6 +85,7 @@ export function Autopilot() {
     (async () => {
       try {
         // 1 · the network
+        const t1 = Date.now() / 1000;
         await api.demoReset();
         s().setTimeTravel(null);
         s().setVoiceResult(null);
@@ -94,7 +95,6 @@ export function Autopilot() {
         await line(1, "s1", 6000);
 
         // 2 · real bridge, real data
-        const t2 = Date.now() / 1000;
         s().selectAsset("KW51");
         s().selectComponent("KW51.DECK");
         s().setCenterTab("twin");
@@ -104,7 +104,7 @@ export function Autopilot() {
         await line(2, "s2b", 3000, { models: "Muse Glimmer · Muse Spark" });
         working("Muse Spark is assessing the alert, streaming its reasoning on the right…");
         s().setSideTab("twin");
-        await waitFor(() => s().triages.some((t) => t.asset_id === "KW51" && t.t > t2 && t.status !== "running"), 90000);
+        await waitFor(() => s().triages.some((t) => t.asset_id === "KW51" && t.t > t1 && t.status !== "running"), 90000);
         await api.replay("KW51", { playing: false }).catch(() => undefined);
         working(undefined);
         await wait(9000);

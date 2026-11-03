@@ -89,3 +89,13 @@ def test_replay_and_ingest_endpoints(monkeypatch):
     assert c.post("/api/replay/B07", json={}).status_code == 404
     r = c.post("/api/ingest", json={"readings": {"B07.P1.strain": 200.5, "X.Y": 1}}).json()
     assert r == {"accepted": 1, "unknown": ["X.Y"]}
+
+
+def test_demo_reset_rewinds_replay(monkeypatch):
+    sim = Simulator(build_corridor(include_kw51=True), replays={"KW51": kw51.Replay(_synthetic())})
+    rp = sim.replays["KW51"]
+    rp.seek(kw51.RETROFIT_END)
+    rp.playing = True
+    monkeypatch.setattr(main, "sim", sim)
+    TestClient(main.app).post("/api/demo/reset")
+    assert rp.row == 0 and rp.playing is False

@@ -37,7 +37,7 @@ The app labels every asset's data source on screen.
 | **SAM / Muse outputs** | **Real model output** when API keys are configured; nothing is faked without them |
 | KW51 "deviation (σ)" sensors | **Derived**: real frequency minus the twin's temperature model |
 | Defect measurements | **Derived** from the image and the member's known size |
-| Pune corridor: viaduct B-07, tunnel T-02, dam D-01 | **Simulated** assets and sensor streams (labelled "Simulated sensor data") |
+| Pune corridor: viaduct B-07, tunnel T-02, dam D-01 | **Simulated** assets and sensor streams (labelled "simulated"). B-07's map position is a real river crossing so the map reads true; nothing shown describes that real bridge |
 | "Simulate Pier 4 event" | **Simulated** demo trigger |
 | 3D shapes of all structures, KW51 map position, drone obstacles | **Illustrative / approximate** |
 
@@ -47,8 +47,8 @@ The app labels every asset's data source on screen.
 
 ### Live monitoring
 
-- **3D map**: satellite imagery with 3D terrain (MapLibre, no API key needed), a health pin per asset with defect
-  counts and a "real data" tag, an asset switcher across regions, and drone flight paths drawn on the ground.
+- **3D map**: a labelled OpenStreetMap basemap (OpenFreeMap) with 3D buildings and terrain, or satellite imagery
+  (MapLibre, no API key needed). Each asset has a health pin with defect counts and a "real data" or "simulated" tag, an asset switcher across regions, and drone flight paths drawn on the ground.
 - **Component-aware 3D twin** (Three.js / React Three Fiber): every member is clickable and coloured by health;
   critical members pulse; selecting a member, a defect or a mission flies the camera to it.
 - **Telemetry and health**: readings stream over a WebSocket at 2 Hz. Status rolls up sensor → member → asset,
@@ -142,10 +142,12 @@ The app labels every asset's data source on screen.
   (multi-stage Dockerfile, non-root, `/data` volume, health check).
 - **Graceful degradation**: each model is optional. Missing keys show "not configured" instead of failing, and
   the top bar shows which models are live.
-- **Welcome screen and guided tour**: a first-visit welcome explains the product in three pillars. The *Tour* walks
-  through six narrated steps with one-click setup: the network; KW51 real data with Muse Spark's assessment; the AI
-  Inspector on a real photo; Muse Wonder seeing around the downpipe; Muse Image two years on; voice. *Reset* clears
-  live state between takes, and pinned findings are kept.
+- **Self-running demo**: a first-visit welcome explains the product in three pillars, and **▶ Play demo** runs the
+  whole story by itself in about 3 minutes, with narrated captions (voice by Kokoro, an open-source neural TTS):
+  the network; KW51 real data with Muse Spark's assessment; the AI Inspector on a real photo; Muse Wonder seeing
+  around the downpipe; Muse Image two years on and repaired; a spoken field command through the voice pipeline.
+  Every step uses live models and moves on when its result is on screen (Space pauses, → skips, Esc exits).
+  *Reset* clears live state between takes, and pinned findings are kept.
 - **Robust model calls**: transient overload and server errors (429/5xx) are retried with backoff; the KW51 replay
   starts paused and automatic triage has a 10-minute cooldown per member, so nothing spends credits unattended.
 
@@ -185,8 +187,8 @@ cp .env.example .env          # add MODEL_API_KEY (Meta Model API); everything e
 open http://localhost:5173
 ```
 
-Check the Meta API key with `curl localhost:8000/api/meta/ping`, then click **Tour** in the top bar for the
-2-minute guided walkthrough. Without any keys, the map, the twin, both data
+Check the Meta API key with `curl localhost:8000/api/meta/ping`, then click **▶ Play demo** in the top bar. To
+re-render the narration: `uv run --with kokoro-onnx --with soundfile python scripts/make_narration.py`. Without any keys, the map, the twin, both data
 sources (simulated corridor and KW51 replay), alerts, the drone planner's geometry and the demo walkthrough all work.
 
 ## Configuration

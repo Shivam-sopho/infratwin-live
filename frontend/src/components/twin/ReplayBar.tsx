@@ -5,6 +5,7 @@ const SPEEDS = [
   { label: "6 h/s", v: 6 },
   { label: "1 day/s", v: 24 },
   { label: "3 days/s", v: 72 },
+  { label: "4 days/s", v: 96 },
   { label: "1 week/s", v: 168 },
 ];
 // Retrofit window within the Oct 2018 - Jan 2020 record, as a fraction of the timeline.
