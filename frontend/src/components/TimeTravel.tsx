@@ -16,7 +16,8 @@ export function TimeTravel() {
   const finding = useTwin((s) => s.findings.find((f) => f.id === s.timeTravelFindingId));
   const components = useTwin((s) => s.components);
   const close = useTwin((s) => s.setTimeTravel);
-  const [stop, setStop] = useState(0);
+  const stop = useTwin((s) => s.ttStop);
+  const setStop = useTwin((s) => s.setTtStop);
   const [forecasts, setForecasts] = useState<Partial<Record<Scenario, Forecast>>>({});
   const [busy, setBusy] = useState<Scenario | null>(null);
   const [error, setError] = useState<string | null>(null);

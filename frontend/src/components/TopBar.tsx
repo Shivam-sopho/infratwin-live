@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
 import { useTwin } from "../store";
-import { DemoGuide } from "./DemoGuide";
 import { VoiceButton } from "./VoiceButton";
 
 const DEMO_COMPONENT = "B07.P4";
@@ -86,7 +85,13 @@ export function TopBar() {
         <button onClick={() => api.demoReset()} className="rounded-md border border-line px-2.5 py-1 text-xs text-ink-2 hover:text-ink" title="Clear anomalies, alerts, assessments and missions (pinned findings are kept)">
           Reset
         </button>
-        <DemoGuide />
+        <button
+          onClick={() => useTwin.getState().setTourOpen(true)}
+          className="rounded-md bg-accent px-3 py-1 text-xs font-medium text-bg hover:opacity-90"
+          title="Runs the whole story by itself, with captions (Space pauses, → skips, Esc exits)"
+        >
+          ▶ Play demo
+        </button>
       </div>
     </header>
   );

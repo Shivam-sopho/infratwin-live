@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import * as maplibregl from "maplibre-gl";
 import type { StyleSpecification } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
@@ -14,8 +14,19 @@ type PathCollection = { type: "FeatureCollection"; features: { type: "Feature"; 
 // MapLibre resolves its worker relative to its own module, which breaks once Vite bundles it.
 maplibregl.setWorkerUrl(workerUrl);
 
-// Key-free satellite imagery + terrain so the demo runs with zero setup.
-const STYLE: StyleSpecification = {
+// Key-free basemaps so the demo runs with zero setup.
+// Map: OpenFreeMap (OpenStreetMap data) dark style with labels; we add 3D terrain and 3D buildings.
+const MAP_STYLE = "https://tiles.openfreemap.org/styles/dark";
+const DEM = {
+  type: "raster-dem" as const,
+  tiles: ["https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png"],
+  tileSize: 256,
+  maxzoom: 14,
+  encoding: "terrarium" as const,
+  attribution: "Terrain: Mapzen / AWS Open Data",
+};
+// Satellite: Esri World Imagery with the same terrain.
+const SATELLITE_STYLE: StyleSpecification = {
   version: 8,
   sources: {
     satellite: {
@@ -25,14 +36,7 @@ const STYLE: StyleSpecification = {
       maxzoom: 19,
       attribution: "Imagery © Esri, Maxar, Earthstar Geographics",
     },
-    dem: {
-      type: "raster-dem",
-      tiles: ["https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png"],
-      tileSize: 256,
-      maxzoom: 14,
-      encoding: "terrarium",
-      attribution: "Terrain: Mapzen / AWS Open Data",
-    },
+    dem: DEM,
   },
   layers: [
     { id: "satellite", type: "raster", source: "satellite" },
@@ -60,6 +64,7 @@ export function CorridorMap() {
   const paths = useRef<PathCollection>({ type: "FeatureCollection", features: [] });
   const pathsReady = useRef(false);
   const lastRegion = useRef<string | null>(null);
+  const [basemap, setBasemap] = useState<"map" | "satellite">("map");
 
   const assets = useTwin((s) => s.assets);
   const assetStatus = useTwin((s) => s.status.assets);
@@ -76,14 +81,32 @@ export function CorridorMap() {
 
     const m = new maplibregl.Map({
       container: container.current,
-      style: STYLE,
+      style: MAP_STYLE,
       bounds,
       fitBoundsOptions: { padding: 80 },
       pitch: 50,
       maxPitch: 80,
     });
     m.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), "top-right");
-    m.on("load", () => {
+    // Re-applied on every style change (Map <-> Satellite): terrain, 3D buildings, drone flight paths.
+    m.on("style.load", () => {
+      if (!m.getSource("dem")) m.addSource("dem", DEM);
+      m.setTerrain({ source: "dem", exaggeration: 1.3 });
+      if (m.getSource("openmaptiles") && !m.getLayer("buildings-3d")) {
+        m.addLayer({
+          id: "buildings-3d",
+          type: "fill-extrusion",
+          source: "openmaptiles",
+          "source-layer": "building",
+          minzoom: 14,
+          paint: {
+            "fill-extrusion-color": "#2b3442",
+            "fill-extrusion-height": ["coalesce", ["get", "render_height"], 8],
+            "fill-extrusion-base": ["coalesce", ["get", "render_min_height"], 0],
+            "fill-extrusion-opacity": 0.85,
+          },
+        });
+      }
       m.addSource("mission-paths", { type: "geojson", data: paths.current });
       m.addLayer({
         id: "mission-paths-glow",
@@ -104,7 +127,7 @@ export function CorridorMap() {
     for (const a of assets) {
       const el = document.createElement("button");
       el.className = "pin";
-      const tag = a.data_source === "simulated" ? "" : `<span class="pin-real">real data</span>`;
+      const tag = a.data_source === "simulated" ? `<span class="pin-sim">simulated</span>` : `<span class="pin-real">real data</span>`;
       el.innerHTML = `<span data-dot class="pin-dot"></span><span class="pin-label">${a.name}${tag}<span data-count class="pin-count" hidden></span></span>`;
       el.addEventListener("click", (e) => {
         e.stopPropagation();
@@ -129,6 +152,15 @@ export function CorridorMap() {
       paintMarker(el, assetStatus[id] ?? "nominal", id === selectedAssetId, counts[id] ?? 0);
     }
   }, [assetStatus, selectedAssetId, findings]);
+
+  const appliedBasemap = useRef<"map" | "satellite">("map");
+  useEffect(() => {
+    const m = map.current;
+    if (!m || appliedBasemap.current === basemap) return; // the map is created with the default style
+    appliedBasemap.current = basemap;
+    pathsReady.current = false; // custom layers are re-added on style.load
+    m.setStyle(basemap === "map" ? MAP_STYLE : SATELLITE_STYLE);
+  }, [basemap]);
 
   // Latest completed mission per asset, drawn as a ground-projected flight line.
   useEffect(() => {
@@ -188,5 +220,22 @@ export function CorridorMap() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only re-fit when the selection changes
   }, [selectedMissionId]);
 
-  return <div ref={container} className="h-full w-full" />;
+  return (
+    <div className="relative h-full w-full">
+      <div ref={container} className="h-full w-full" />
+      <div className="absolute left-3 top-3 flex overflow-hidden rounded-md border border-line bg-panel/90 text-xs backdrop-blur" role="radiogroup" aria-label="Basemap">
+        {(["map", "satellite"] as const).map((b) => (
+          <button
+            key={b}
+            role="radio"
+            aria-checked={basemap === b}
+            onClick={() => setBasemap(b)}
+            className={`px-2.5 py-1 capitalize ${basemap === b ? "bg-accent text-bg" : "text-ink-2 hover:text-ink"}`}
+          >
+            {b}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
 }

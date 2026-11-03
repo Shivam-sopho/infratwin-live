@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { api } from "../api";
 import { startRecording, type Recorder } from "../audio";
+import { runVoiceCommand } from "../voiceCommand";
 import { useTwin } from "../store";
-import type { VoiceResult } from "../types";
 
 const STATUS_MARK: Record<string, string> = { done: "✓", client: "→", skipped: "–", error: "✕" };
 const ACTION_LABEL: Record<string, string> = {
@@ -20,7 +19,8 @@ const MAX_RECORD_S = 60;
 export function VoiceButton() {
   const [state, setState] = useState<"idle" | "recording" | "processing">("idle");
   const [secs, setSecs] = useState(0);
-  const [result, setResult] = useState<VoiceResult | null>(null);
+  const result = useTwin((s) => s.voiceResult);
+  const setResult = useTwin((s) => s.setVoiceResult);
   const [error, setError] = useState<string | null>(null);
   const rec = useRef<Recorder | null>(null);
   const components = useTwin((s) => s.components);
@@ -53,16 +53,7 @@ export function VoiceButton() {
     if (!rec.current) return;
     setState("processing");
     try {
-      const wav = await rec.current.stop();
-      const { selectedComponentId, selectComponent, setCenterTab } = useTwin.getState();
-      const r = await api.voice(wav, selectedComponentId);
-      setResult(r);
-      // Navigation actions run in the browser.
-      for (const a of r.actions) {
-        if (a.status !== "client") continue;
-        selectComponent(a.component_id);
-        if (a.type === "open_inspection") setCenterTab("inspect");
-      }
+      await runVoiceCommand(await rec.current.stop());
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {

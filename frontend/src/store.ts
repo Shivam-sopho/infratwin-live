@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { Alert, Asset, Component, Finding, Lift, Mission, Note, ReplayState, Screen, Sensor, ServerMessage, StatusSnapshot, Triage } from "./types";
+import type { Alert, Asset, Component, Finding, Lift, Mission, Note, ReplayState, Screen, Sensor, ServerMessage, StatusSnapshot, Triage, VoiceResult } from "./types";
 
 const HISTORY_LEN = 240;
 const EMPTY_STATUS: StatusSnapshot = { sensors: {}, components: {}, assets: {} };
@@ -34,6 +34,12 @@ interface TwinState {
   inspectRequest: { sample: string; nonce: number } | null;
   tourOpen: boolean;
   setTourOpen: (v: boolean) => void;
+  inspection: { status: "idle" | "running" | "done" | "error"; at: number };
+  setInspection: (status: "idle" | "running" | "done" | "error") => void;
+  ttStop: number;
+  setTtStop: (i: number) => void;
+  voiceResult: VoiceResult | null;
+  setVoiceResult: (r: VoiceResult | null) => void;
   requestInspection: (sample: string) => void;
   replay: Record<string, ReplayState>;
   setAuthRequired: (v: boolean) => void;
@@ -77,6 +83,12 @@ export const useTwin = create<TwinState>((set, get) => ({
   inspectRequest: null,
   tourOpen: false,
   setTourOpen: (tourOpen) => set({ tourOpen }),
+  inspection: { status: "idle", at: 0 },
+  setInspection: (status) => set({ inspection: { status, at: Date.now() } }),
+  ttStop: 0,
+  setTtStop: (ttStop) => set({ ttStop }),
+  voiceResult: null,
+  setVoiceResult: (voiceResult) => set({ voiceResult }),
   requestInspection: (sample) => set({ inspectRequest: { sample, nonce: Date.now() }, centerTab: "inspect" }),
   replay: {},
   setAuthRequired: (authRequired) => set({ authRequired }),

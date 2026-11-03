@@ -1,0 +1,17 @@
+{
+  "s1": { "title": "A live digital twin of the network", "text": "Every bridge, tunnel and dam is a 3D twin built from its members: piers, girders, arches. Each one is coloured by live sensor health." },
+  "s2a": { "title": "Real bridge. Real data.", "text": "This is railway bridge KW51 near Leuven, replaying fifteen months of real monitoring data. The twin removes temperature and frost effects, and watches what is left." },
+  "s2b": { "text": "In 2019 the bridge was strengthened. The twin flags the stiffness change from the data alone, and Muse Spark assesses it like a structural engineer." },
+  "s3a": { "title": "An AI inspector", "text": "Now a real inspection photo. Muse Spark reads it like a senior engineer, and SAM 3.1 turns every defect into a pixel-accurate mask." },
+  "s3b": { "text": "Each defect, its severity, and the member it sits on, plus a written assessment and the recommended action, in about twenty seconds." },
+  "s4a": { "title": "Seeing around obstacles", "text": "A crack on Pier 4 hides behind a drainage pipe. Flying straight at it, a drone would see only thirty percent of it." },
+  "s4b": { "text": "Muse Wonder tests camera angles with the twin's geometry engine, and finds the one that sees all of it, with a collision-checked flight to get there." },
+  "s5a": { "title": "Two years from now", "text": "What if nobody acts? Muse Spark reasons about the damage mechanism, and Muse Image shows it on the real photo." },
+  "s5b": { "text": "Six months: water from the pipe keeps the crack wet, and it widens." },
+  "s5c": { "text": "Two years: efflorescence and rust streaks. The reinforcement is corroding." },
+  "s5d": { "text": "Or repaired: the crack injected and sealed. It is an illustration, not a prediction, but it makes the risk tangible." },
+  "s6a": { "title": "Hands-free in the field", "text": "On site, the inspector just speaks." },
+  "s6b": { "text": "Muse Voice transcribes it, Muse Spark understands it, and the twin acts: a field note, and a new drone mission." },
+  "s7": { "title": "InfraTwin-Live", "text": "Monitor, inspect, act. From a sensor drifting on a real bridge, to an AI inspection, to a drone flight that sees around obstacles, in minutes instead of a site visit." },
+  "command": { "text": "Note a shear crack on Pier 4, and plan a drone re-scan around the drainage pipe.", "voice": "am_michael" }
+}

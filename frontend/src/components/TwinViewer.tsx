@@ -55,8 +55,6 @@ function ComponentMesh({ comp, status }: { comp: Component; status: Status }) {
       name={comp.id}
       position={g.position}
       rotation={rotation}
-      castShadow
-      receiveShadow
       onClick={onClick}
       onPointerOver={(e) => {
         e.stopPropagation();
@@ -231,7 +229,7 @@ function LiftedCloud({ f, g, lift }: { f: Finding; g: Geometry; lift: Lift }) {
 function Surroundings({ type }: { type: Asset["type"] }) {
   if (type === "bridge")
     return (
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0]} receiveShadow>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0]}>
         <planeGeometry args={[60, 400]} />
         <meshStandardMaterial color="#1e3a5f" roughness={0.3} metalness={0.2} transparent opacity={0.85} />
       </mesh>
@@ -265,10 +263,10 @@ export function TwinViewer() {
 
   return (
     <div className="relative h-full w-full">
-      <Canvas shadows camera={{ position: [120, 80, 160], fov: 40, near: 0.5, far: 5000 }} onPointerMissed={() => selectComponent(null)}>
+      <Canvas dpr={[1, 1.5]} camera={{ position: [120, 80, 160], fov: 40, near: 0.5, far: 5000 }} onPointerMissed={() => selectComponent(null)}>
         <color attach="background" args={["#0b0f14"]} />
         <hemisphereLight args={["#cbd5e1", "#1f2937", 0.7]} />
-        <directionalLight position={[80, 140, 60]} intensity={1.6} castShadow shadow-mapSize={[2048, 2048]} />
+        <directionalLight position={[80, 140, 60]} intensity={1.6} />
         <Bounds key={asset.id} fit clip margin={1.3} maxDuration={0.8}>
           <FocusOnSelection />
           <group>

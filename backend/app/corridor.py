@@ -125,9 +125,11 @@ def _bridge() -> Asset:
         id="B07",
         name="Riverside Viaduct B-07",
         type="bridge",
-        lng=73.8785,
-        lat=18.5395,
-        heading_deg=20,
+        # Placed on a real river crossing in Pune (OSM: Babasaheb Ambedkar / Bund Garden bridge), aligned to its
+        # axis, so the map reads true. The asset itself and its sensor data are simulated and labelled as such.
+        lng=73.88331,
+        lat=18.54471,
+        heading_deg=347.6,
         description="7-span prestressed concrete box-girder viaduct, 210 m, 4-lane highway.",
         components=b.components,
         sensors=b.sensors,

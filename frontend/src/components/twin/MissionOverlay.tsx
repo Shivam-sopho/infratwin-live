@@ -14,7 +14,7 @@ export function Occluders({ asset }: { asset: Asset }) {
       {asset.occluders.map((o) => {
         const g = o.geometry;
         return (
-          <mesh key={o.id} position={g.position} castShadow>
+          <mesh key={o.id} position={g.position}>
             {g.shape === "cylinder" ? <cylinderGeometry args={[g.size[0], g.size[0], g.size[1], 16]} /> : <boxGeometry args={g.size} />}
             <meshStandardMaterial
               color={OCCLUDER_COLOR}

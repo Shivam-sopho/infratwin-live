@@ -204,6 +204,7 @@ export function InspectionPanel() {
   const segment = async () => {
     if (!file || (!aiMode && selected.length === 0)) return;
     setBusy(isVideo ? "Transcoding + tracking…" : aiMode ? "Muse Spark reading the photo → SAM 3.1 masking…" : "Segmenting…");
+    useTwin.getState().setInspection("running");
     setError(null);
     setNotice(null);
     const concepts = selected.map(({ text, category }) => ({ text, category }));
@@ -215,8 +216,10 @@ export function InspectionPanel() {
           : { kind: "image", report: await api.segment(file, concepts, target || undefined) };
       setRun(next);
       setPinSel(new Set(defectRows(next).map((r) => r.id)));
+      useTwin.getState().setInspection("done");
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
+      useTwin.getState().setInspection("error");
     } finally {
       setBusy(null);
     }
@@ -476,6 +479,15 @@ export function InspectionPanel() {
                 );
               })}
           </svg>
+        )}
+        {busy && aiMode && !run && (
+          <div className="pointer-events-none absolute inset-4 overflow-hidden rounded">
+            <div className="scan-line" />
+            <div className="absolute left-3 top-3 flex items-center gap-2 rounded-md bg-bg/85 px-2.5 py-1.5 text-xs text-ink">
+              <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-accent" />
+              Muse Spark is reading the photo like an inspector… then SAM 3.1 masks each defect
+            </div>
+          </div>
         )}
         {!preview && (
           <div className="absolute inset-0 grid place-content-center text-center text-sm text-ink-3">
