@@ -16,7 +16,7 @@ measures it in millimetres, and plans a drone flight that can actually see it.
 |---|---|---|
 | **1 · Monitor** | Live sensors stream into the twin; health rolls up sensor → member → asset; alerts fire with hysteresis | — |
 | **2 · Screen & assess** | Every alert is screened in milliseconds; critical ones get a full engineering assessment that streams its reasoning | Muse Glimmer, Muse Spark 1.3 |
-| **3 · Inspect** | Photos or video are segmented into structural elements *and* defects in one pass; each defect is pinned to its member | SAM 3.1 |
+| **3 · Inspect** | An AI inspector reads each photo (defects, severity, notes) and makes it pixel-accurate; each defect is pinned to its member | Muse Spark, SAM 3.1 |
 | **4 · Measure** | Defects get metric area, perimeter, crack length and width; a second model re-measures with its own code in a sandbox | Muse Spark Open |
 | **5 · Lift to 3D** | The defect is reconstructed in 3D on the twin; workers under an overhead defect are flagged | SAM 3D Objects, SAM 3D Body |
 | **6 · Plan the re-scan** | When a pipe or scaffold blocks the view, a planner finds camera angles that see the defect and a collision-free flight | Muse Wonder |
@@ -79,7 +79,15 @@ The app labels every asset's data source on screen.
 
 ### AI inspection
 
-- **SAM 3.1 on photos**: one image is segmented against two vocabularies at once: structural elements (pier,
+- **AI Inspector (Muse Spark + SAM 3.1)**, the default for photos. Live tests on real dacl10k photos showed that SAM 3.1
+  text concepts alone rarely find concrete surface defects ("spalling", "efflorescence", "exposed rebar" returned
+  nothing). So the photo goes to **Muse Spark** first, which reads it like a senior inspector: every structural element
+  and defect with a box, points on the defect, a severity and a factual note, plus a condition summary and the
+  recommended action. **SAM 3.1** then turns each element and area defect into a pixel-accurate mask (box + point
+  prompts, one request per object). Cracks and exposed rebar keep Muse Spark's traced centre line, because SAM masks of
+  thin objects bleed into the surrounding surface. On a real spalling/rebar photo scored against the expert labels:
+  exposed rebar 2/2 and spalling 1/1 found, where concept search alone found 0/2 and 0/1.
+- **Concept search (SAM 3.1 alone)** on photos: one image is segmented against two vocabularies at once: structural elements (pier,
   girder, deck, column, tunnel lining) and defects (crack, alligator crack, spalling, exposed rebar,
   efflorescence, rust stain, wet spot). SAM 3.1 takes one concept per request, so the requests fan out
   concurrently. Each defect is attributed to the element its mask overlaps most, e.g. *"concrete crack #0 on
@@ -134,8 +142,12 @@ The app labels every asset's data source on screen.
   (multi-stage Dockerfile, non-root, `/data` volume, health check).
 - **Graceful degradation**: each model is optional. Missing keys show "not configured" instead of failing, and
   the top bar shows which models are live.
-- **Demo walkthrough**: a *Demo* panel with six narrated steps and one-click setup, plus *Reset* to clear live
-  state between takes (pinned findings are kept).
+- **Welcome screen and guided tour**: a first-visit welcome explains the product in three pillars. The *Tour* walks
+  through six narrated steps with one-click setup: the network; KW51 real data with Muse Spark's assessment; the AI
+  Inspector on a real photo; Muse Wonder seeing around the downpipe; Muse Image two years on; voice. *Reset* clears
+  live state between takes, and pinned findings are kept.
+- **Robust model calls**: transient overload and server errors (429/5xx) are retried with backoff; the KW51 replay
+  starts paused and automatic triage has a 10-minute cooldown per member, so nothing spends credits unattended.
 
 ---
 
@@ -144,7 +156,7 @@ The app labels every asset's data source on screen.
 | Model | How it is called | Role |
 |---|---|---|
 | **SAM 3.1** | Meta Model API (Responses API, SSE, `meta-sam-parser`) | Element + defect segmentation and video tracking |
-| **Muse Spark 1.3** | Meta Model API (Responses API, reasoning summaries, strict JSON schema) | Alert triage, voice intent parsing, time-travel reasoning |
+| **Muse Spark 1.3** | Meta Model API (Responses API with image input, reasoning summaries, strict JSON schema) | AI Inspector (reads inspection photos), alert triage, voice intent parsing, time-travel reasoning |
 | **Muse Wonder** | Meta Model API (Responses API, function tools, `previous_response_id`) | Drone mission planning with the geometry engine as tools |
 | **Muse Image** | Meta Model API (`/images/edits`) | Deterioration and repair previews |
 | **Muse Voice Transcribe** | Meta Model API (`/asr/transcribe`) | Field voice commands |
@@ -153,9 +165,12 @@ The app labels every asset's data source on screen.
 | **SAM 3D Objects** | Modal GPU endpoint (`modal_workers/`) | Defect 3D reconstruction + pose |
 | **SAM 3D Body** | Modal GPU endpoint (`modal_workers/`) | Worker localisation for work-zone safety |
 
-**Verification status:** every integration follows Meta's documentation and is covered by tests against recorded
-or stubbed responses, and every UI flow has been exercised in a browser with stubbed models. The paid APIs and the
-SAM 3D GPU service have not yet been called live from this repository; expect small adjustments on first contact.
+**Verification status:** SAM 3.1, Muse Spark (vision, triage, voice intent, time-travel reasoning), Muse Wonder (tool
+calling), Muse Image and Muse Voice Transcribe have been **run live end to end** against the Meta Model API, including
+the full guided tour. That first live run drove several fixes: a stateless tool loop for Wonder, retries on transient
+overload, and the AI Inspector itself. Muse Glimmer, Muse Spark Open with the Modal Sandbox, and SAM 3D are implemented
+and tested against stubs, but have not been run live: they need a third-party model host and a Modal account. The app
+hides them when they are not configured.
 
 ---
 
@@ -170,7 +185,8 @@ cp .env.example .env          # add MODEL_API_KEY (Meta Model API); everything e
 open http://localhost:5173
 ```
 
-Check the Meta API key with `curl localhost:8000/api/meta/ping`. Without any keys, the map, the twin, both data
+Check the Meta API key with `curl localhost:8000/api/meta/ping`, then click **Tour** in the top bar for the
+2-minute guided walkthrough. Without any keys, the map, the twin, both data
 sources (simulated corridor and KW51 replay), alerts, the drone planner's geometry and the demo walkthrough all work.
 
 ## Configuration
@@ -250,11 +266,11 @@ docs/ROADMAP.md          feature status and Meta API integration notes
 
 ## Tests
 
-`cd backend && uv run pytest`: 49 tests covering SAM 3.1 stream parsing (against the documented sample output),
+`cd backend && uv run pytest`: 52 tests covering the AI Inspector's Spark → SAM chain, SAM 3.1 stream parsing (against the documented sample output),
 defect attribution, video tracks and billing minimums, measurement accuracy on synthetic geometry, KW51
 temperature compensation vs. stiffness change, replay, ingest, triage streaming and cooldowns, Wonder's tool loop,
 occlusion and path planning, voice end-to-end with the spec's example command, time-travel caching, the Spark Open
-tool loop against a real decoded mask, SAM 3D endpoints and geofencing, auth, and the spend cap. Model-written code
+tool loop against a real decoded mask, SAM 3D endpoints and geofencing, Meta API retries, auth, and the spend cap. Model-written code
 in tests runs only in a test-local stand-in for the sandbox.
 
 ## Data and references
