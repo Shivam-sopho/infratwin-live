@@ -1,5 +1,6 @@
 import asyncio
 import base64
+import io
 import json
 from datetime import datetime, timezone
 import os
@@ -637,6 +638,39 @@ async def demo_reset():
     planner.missions.clear()
     await sim.broadcast(_snapshot())
     return {"ok": True}
+
+
+DEMO_PHOTO = "dacl10k_v2_train_3548.jpg"  # real inspection photo: crack with water staining and efflorescence
+
+
+@app.post("/api/demo/finding", response_model=Finding)
+async def demo_finding():
+    """The tour's anchor: a real crack photo pinned to Pier 4's east face, just behind the drainage downpipe."""
+    existing = next((f for f in findings.all() if f.component_id == "B07.P4" and f.source_name.startswith(DEMO_PHOTO)), None)
+    if existing:
+        return existing
+    path = SAMPLES_DIR / "images" / DEMO_PHOTO
+    if not path.exists():
+        raise HTTPException(404, "Demo photo not downloaded (run scripts/fetch_data.sh)")
+    img = Image.open(path).convert("RGB")
+    img.thumbnail((512, 512))
+    buf = io.BytesIO()
+    img.save(buf, "JPEG", quality=85)
+    item = FindingIn(
+        component_id="B07.P4",
+        concept="crack",
+        area_px=0,
+        source="image",
+        source_name=f"{DEMO_PHOTO} (real inspection photo, dacl10k)",
+        bbox_uv=(0.4, 0.55, 0.6, 0.75),
+        host_label="pier",
+        severity="high",
+        note="Crack with water staining and efflorescence on the east face, partly hidden behind the drainage downpipe",
+        thumbnail="data:image/jpeg;base64," + base64.b64encode(buf.getvalue()).decode(),
+    )
+    added = findings.add([item], ASSET_OF_COMPONENT)
+    await sim.broadcast({"type": "findings", "added": [f.model_dump() for f in added], "removed": []})
+    return added[0]
 
 
 @app.websocket("/ws/telemetry")

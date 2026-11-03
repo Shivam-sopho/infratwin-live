@@ -4,6 +4,15 @@ import type { Alert, Asset, Component, Finding, Lift, Mission, Note, ReplayState
 const HISTORY_LEN = 240;
 const EMPTY_STATUS: StatusSnapshot = { sensors: {}, components: {}, assets: {} };
 
+export interface Capabilities {
+  meta: boolean;
+  glimmer: boolean;
+  sparkOpen: boolean;
+  modal: boolean;
+  sam3dObjects: boolean;
+  sam3dBody: boolean;
+}
+
 interface TwinState {
   assets: Asset[];
   components: Record<string, Component>;
@@ -20,6 +29,12 @@ interface TwinState {
   lifts: Record<string, Lift>;
   timeTravelFindingId: string | null;
   authRequired: boolean;
+  caps: Capabilities;
+  setCaps: (c: Capabilities) => void;
+  inspectRequest: { sample: string; nonce: number } | null;
+  tourOpen: boolean;
+  setTourOpen: (v: boolean) => void;
+  requestInspection: (sample: string) => void;
   replay: Record<string, ReplayState>;
   setAuthRequired: (v: boolean) => void;
   setTimeTravel: (id: string | null) => void;
@@ -57,6 +72,12 @@ export const useTwin = create<TwinState>((set, get) => ({
   lifts: {},
   timeTravelFindingId: null,
   authRequired: false,
+  caps: { meta: false, glimmer: false, sparkOpen: false, modal: false, sam3dObjects: false, sam3dBody: false },
+  setCaps: (caps) => set({ caps }),
+  inspectRequest: null,
+  tourOpen: false,
+  setTourOpen: (tourOpen) => set({ tourOpen }),
+  requestInspection: (sample) => set({ inspectRequest: { sample, nonce: Date.now() }, centerTab: "inspect" }),
   replay: {},
   setAuthRequired: (authRequired) => set({ authRequired }),
   setTimeTravel: (timeTravelFindingId) => set({ timeTravelFindingId }),

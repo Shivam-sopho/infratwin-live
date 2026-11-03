@@ -3,6 +3,7 @@ import { api, setUnauthorizedHandler } from "./api";
 import { SideFeed } from "./components/SideFeed";
 import { LoginGate } from "./components/LoginGate";
 import { TimeTravel } from "./components/TimeTravel";
+import { Welcome } from "./components/Welcome";
 import { CorridorMap } from "./components/CorridorMap";
 import { Inspector } from "./components/Inspector";
 import { TopBar } from "./components/TopBar";
@@ -35,6 +36,7 @@ export default function App() {
         </aside>
       </main>
       <TimeTravel />
+      <Welcome />
       <LoginGate />
     </div>
   );

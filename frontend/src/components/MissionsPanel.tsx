@@ -34,7 +34,13 @@ function MissionCard({ m }: { m: Mission }) {
         </span>
       </header>
 
-      {(m.reasoning || m.status === "running") && (
+      {m.status !== "running" && m.reasoning && (
+        <details className="text-[11px] text-ink-3">
+          <summary className="cursor-pointer">Model reasoning</summary>
+          <p className="mt-1 border-l-2 border-line pl-2 italic">{m.reasoning}</p>
+        </details>
+      )}
+      {m.status === "running" && (
         <p className="border-l-2 border-line pl-2 italic text-ink-2">
           {m.reasoning}
           {m.status === "running" && <span className="ml-0.5 inline-block animate-pulse not-italic text-accent">▍</span>}

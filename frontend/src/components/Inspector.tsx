@@ -35,6 +35,7 @@ function FindingCard({ f }: { f: Finding }) {
   const selectFinding = useTwin((s) => s.selectFinding);
   const setTimeTravel = useTwin((s) => s.setTimeTravel);
   const lifted = useTwin((s) => !!s.lifts[f.id]);
+  const canLift = useTwin((s) => s.caps.sam3dObjects);
   const [lifting, setLifting] = useState<string | null>(null);
   return (
     <div
@@ -88,7 +89,7 @@ function FindingCard({ f }: { f: Finding }) {
           </div>
         )}
         <VerifyAction f={f} />
-        {f.thumbnail_mask_png && (
+        {f.thumbnail_mask_png && (canLift || lifted) && (
           <div onClick={(e) => e.stopPropagation()}>
             {lifted ? (
               <span className="text-[11px] text-ink-2">3D reconstruction on twin (SAM 3D Objects)</span>

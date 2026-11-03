@@ -121,6 +121,9 @@ export function InspectionPanel() {
   const [showGt, setShowGt] = useState(false);
   const [radius, setRadius] = useState(3);
   const [mode, setMode] = useState<"ai" | "concepts">("ai");
+  const caps = useTwin((s) => s.caps);
+  const inspectRequest = useTwin((s) => s.inspectRequest);
+  const [pendingRun, setPendingRun] = useState(false);
   const input = useRef<HTMLInputElement>(null);
   const imgRef = useRef<HTMLImageElement | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -301,6 +304,22 @@ export function InspectionPanel() {
       setBusy(null);
     }
   };
+
+  useEffect(() => {
+    if (!inspectRequest || samples.length === 0) return;
+    setMode("ai");
+    setTarget(""); // tour photos aren't of a known member: no metric scale
+    void loadSample(inspectRequest.sample).then(() => setPendingRun(true));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [inspectRequest, samples.length]);
+
+  useEffect(() => {
+    if (pendingRun && file && natural) {
+      setPendingRun(false);
+      void segment();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingRun, file, natural]);
 
   const viewInTwin = (componentId: string) => {
     selectComponent(componentId);
@@ -656,7 +675,7 @@ export function InspectionPanel() {
                     ? "Pinning…"
                     : `Pin ${pinSel.size} defect${pinSel.size === 1 ? "" : "s"} to ${target ? (components[target]?.name ?? "twin") : "twin"}`}
                 </button>
-                {run.kind === "image" && rows.some((r) => r.maskPng) && (
+                {run.kind === "image" && rows.some((r) => r.maskPng) && caps.sam3dObjects && caps.sam3dBody && (
                   <span className="flex items-center gap-1">
                     <button
                       onClick={checkWorkZone}

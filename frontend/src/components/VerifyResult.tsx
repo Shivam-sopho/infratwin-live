@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { api } from "../api";
+import { useTwin } from "../store";
 import type { Finding, Verification } from "../types";
 
 const ROWS: { key: string; label: string; unit: string; digits: number }[] = [
@@ -14,7 +15,8 @@ export function VerifyAction({ f }: { f: Finding }) {
   const [busy, setBusy] = useState(false);
   const [v, setV] = useState<Verification | null>(null);
   const [error, setError] = useState<string | null>(null);
-  if (!f.metrology?.scale_mm_per_px || !f.mask_png) return null;
+  const available = useTwin((s) => s.caps.sparkOpen && s.caps.modal);
+  if (!available || !f.metrology?.scale_mm_per_px || !f.mask_png) return null;
 
   const run = async (e: React.MouseEvent) => {
     e.stopPropagation();

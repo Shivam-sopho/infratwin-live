@@ -31,7 +31,11 @@ inspection report. Given the finding (defect type, measurements, host element, e
 2. image_prompt: an edit instruction for an image model that will modify the supplied close-up photo. Keep the same
    camera viewpoint, framing, lighting and surrounding concrete; describe only the visible changes (crack width and
    branching, spall extent, rust staining, efflorescence, or the repaired surface finish). Photorealistic, no text,
-   no annotations, no people."""
+   no annotations, no people.
+3. Consistency across scenarios: name the exact defect being evolved by its location and appearance in the photo
+   (e.g. "the thin dark crack running left to right through the centre"). Paint stripes, survey markings, chalk or
+   crayon lines and formwork marks are NOT defects: leave them unchanged and never turn them into cracks. Every
+   scenario must evolve the same defect, so a reader can compare them side by side."""
 
 
 class ForecastPlan(BaseModel):

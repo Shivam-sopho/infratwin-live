@@ -10,24 +10,21 @@ interface Step {
   action?: { label: string; run: () => Promise<void> | void };
 }
 
-const PIER = "B07.P4";
-
-function latestFinding(componentId: string) {
-  return [...useTwin.getState().findings].reverse().find((f) => f.component_id === componentId);
-}
+const DEMO_PHOTO = "dacl10k_v2_train_3113.jpg"; // real inspection photo: spalling + corroded exposed rebar
 
 const STEPS: Step[] = [
   {
-    title: "1 · The corridor, live",
+    title: "1 · A live twin of the network",
     models: [],
     say:
-      "This is a live digital twin of an infrastructure corridor: a viaduct, a tunnel and a dam on a 3D map. " +
-      "Every pier and girder is a twin component with live strain, vibration and deflection sensors.",
+      "This is InfraTwin-Live. Every structure on the map is a digital twin built from its members (piers, girders, arches), " +
+      "coloured by live sensor health. Pins turn amber or red the moment a member drifts out of its safe envelope.",
     action: {
-      label: "Reset & show corridor",
+      label: "Reset & show the network",
       run: async () => {
         await api.demoReset();
         const s = useTwin.getState();
+        s.setTimeTravel(null);
         s.selectAsset(null);
         s.setCenterTab("twin");
         s.setSideTab("alerts");
@@ -35,35 +32,15 @@ const STEPS: Step[] = [
     },
   },
   {
-    title: "2 · A sensor spike on Pier 4",
+    title: "2 · Real bridge, real data",
     models: ["Muse Glimmer", "Muse Spark 1.3"],
     say:
-      "Strain and vibration on Pier 4 start climbing. Glimmer screens each alert in milliseconds; when it goes " +
-      "critical, Muse Spark gets the whole twin context and streams its assessment: causes, evidence, actions, " +
-      "and whether we need eyes on the structure.",
-    todo: "Wait about 20 s for Watch → Critical; the Cognitive Twin tab opens by itself.",
+      "This is railway bridge KW51 near Leuven, replaying 15 months of real monitoring data. Its frequencies drift with " +
+      "temperature and frozen ballast, so the twin compensates for the environment and watches what is left. When the bridge " +
+      "was strengthened in 2019, the twin flags the stiffness change, and Muse Spark explains it like an engineer would.",
+    todo: "Watch the deviation sensors climb into the retrofit window; the Cognitive Twin tab opens with Muse Spark's assessment.",
     action: {
-      label: "Trigger Pier 4 event",
-      run: async () => {
-        const s = useTwin.getState();
-        s.selectComponent(PIER);
-        s.setCenterTab("twin");
-        s.setSideTab("alerts");
-        await api.injectAnomaly(PIER);
-      },
-    },
-  },
-  {
-    title: "3 · A real bridge, real data",
-    models: ["Muse Glimmer", "Muse Spark 1.3"],
-    say:
-      "Now a real structure: railway bridge KW51 near Leuven, with 15 months of real monitoring data. Its natural " +
-      "frequencies drift with temperature and freezing ballast, so raw thresholds would be useless; the twin " +
-      "compensates for the environment and watches what's left. When the bridge was strengthened in 2019, the twin " +
-      "flags the stiffness change from the data alone.",
-    todo: "Replay runs at 3 days/s from just before the retrofit: watch the deviation sensors and alerts climb.",
-    action: {
-      label: "Open KW51 replay",
+      label: "Play KW51 into the retrofit",
       run: async () => {
         const s = useTwin.getState();
         if (!s.assets.some((a) => a.id === "KW51")) throw new Error("KW51 data not loaded on the server");
@@ -76,62 +53,82 @@ const STEPS: Step[] = [
     },
   },
   {
-    title: "4 · AI visual inspection",
-    models: ["SAM 3.1", "SAM 3D Objects", "SAM 3D Body", "Muse Spark Open"],
+    title: "3 · An AI inspector",
+    models: ["Muse Spark 1.3", "SAM 3.1"],
     say:
-      "The drone footage goes to SAM 3.1, which segments structural elements and defects in one pass and pins each " +
-      "crack to the pier it sits on. Using the pier's known width we get millimetre crack widths; SAM 3D lifts the " +
-      "defect into 3D and checks that nobody is standing under it.",
-    todo: "Load the Pier 4 photo or clip → Run SAM 3.1 → Pin → Lift to 3D / Work-zone check → Verify with Spark Open.",
+      "A real inspection photo. Muse Spark reads it like a senior inspector: what each defect is, where, how severe. SAM 3.1 " +
+      "turns that into pixel-accurate masks, and every defect is pinned to the member it sits on, with a written assessment.",
+    todo: "Takes ~20 s. Then point at the exposed rebar lines and the inspector's assessment card.",
     action: {
-      label: "Open inspection on Pier 4",
-      run: () => {
+      label: "Inspect a real photo",
+      run: async () => {
         const s = useTwin.getState();
-        s.selectComponent(PIER);
-        s.setCenterTab("inspect");
+        await api.replay("KW51", { playing: false }).catch(() => undefined);
+        s.selectAsset("B07");
+        s.requestInspection(DEMO_PHOTO);
       },
     },
   },
   {
-    title: "5 · Hands-free, and into the future",
-    models: ["Muse Voice Transcribe", "Muse Spark 1.3", "Muse Image"],
-    say:
-      "The inspector just talks to the twin. Then we drag the timeline: Muse Spark reasons about how this crack evolves " +
-      "and Muse Image shows it in two years untreated, and after repair.",
-    todo: "Click Voice command and say: “Pin this shear crack to Pier 4, run metric area calculation, and plan a drone re-scan around the drainage pipe.”",
-    action: {
-      label: "Open time-travel",
-      run: () => {
-        const s = useTwin.getState();
-        s.selectComponent(PIER);
-        s.setCenterTab("twin");
-        const f = latestFinding(PIER);
-        if (f) s.setTimeTravel(f.id);
-      },
-    },
-  },
-  {
-    title: "6 · Re-planning the drone around obstacles",
+    title: "4 · Seeing around obstacles",
     models: ["Muse Wonder"],
     say:
-      "A drainage pipe blocks the square-on view of the crack. Muse Wonder calls the twin's geometry engine as tools, " +
-      "compares standoffs and angles, and returns a collision-checked flight that sees the crack.",
-    todo: "Watch the Missions tab; click Show in twin when it finishes.",
+      "A crack on Pier 4 sits behind a drainage downpipe: a drone flying square-on sees only 30% of it. Muse Wonder uses the " +
+      "twin's geometry engine as tools, compares angles and distances, and returns a collision-checked flight that sees all of it.",
+    todo: "~40 s. Watch the tool calls in the Missions tab, then click Show in twin.",
     action: {
-      label: "Plan drone re-scan",
+      label: "Plan the drone re-scan",
       run: async () => {
         const s = useTwin.getState();
         s.setTimeTravel(null);
-        s.selectComponent(PIER);
+        const f = await api.demoFinding();
+        s.selectComponent("B07.P4");
         s.setCenterTab("twin");
-        await api.createMission(PIER, latestFinding(PIER)?.id);
+        s.setSideTab("missions");
+        await api.createMission("B07.P4", f.id);
+      },
+    },
+  },
+  {
+    title: "5 · Two years from now",
+    models: ["Muse Spark 1.3", "Muse Image"],
+    say:
+      "What happens if nobody acts? Muse Spark reasons about the mechanism, water from the downpipe and corroding steel, and " +
+      "Muse Image renders that crack two years on, or after repair. It's illustrative, not a prediction, but it makes risk tangible.",
+    todo: "Drag the timeline to +2 years and Repaired (first render ~30 s, then cached).",
+    action: {
+      label: "Open the time-travel view",
+      run: async () => {
+        const s = useTwin.getState();
+        const f = await api.demoFinding();
+        s.selectComponent("B07.P4");
+        s.setCenterTab("twin");
+        s.setTimeTravel(f.id);
+      },
+    },
+  },
+  {
+    title: "6 · Hands-free in the field",
+    models: ["Muse Voice Transcribe", "Muse Spark 1.3"],
+    say:
+      "On site, inspectors just talk. Voice is transcribed, understood, and turned into actions on the twin: a field note, the " +
+      "measurements, a new drone mission.",
+    todo: "Click Voice command and say: “Note a shear crack on Pier 4 and plan a drone re-scan around the drainage pipe.”",
+    action: {
+      label: "Focus Pier 4",
+      run: () => {
+        const s = useTwin.getState();
+        s.setTimeTravel(null);
+        s.selectComponent("B07.P4");
+        s.setCenterTab("twin");
       },
     },
   },
 ];
 
 export function DemoGuide() {
-  const [open, setOpen] = useState(false);
+  const open = useTwin((s) => s.tourOpen);
+  const setOpen = useTwin((s) => s.setTourOpen);
   const [i, setI] = useState(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -164,17 +161,17 @@ export function DemoGuide() {
   return (
     <>
       <button
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => setOpen(!open)}
         aria-pressed={open}
         className={`rounded-md border px-2.5 py-1 text-xs ${open ? "border-accent text-ink" : "border-line text-ink-2 hover:text-ink"}`}
       >
-        Demo
+        Tour
       </button>
       {open && (
         <div className="fixed bottom-4 left-4 z-30 w-[26rem] max-w-[calc(100vw-2rem)] rounded-lg border border-line bg-panel/95 p-3 text-xs shadow-2xl backdrop-blur">
           <div className="mb-1 flex items-center justify-between">
             <span className="text-[11px] uppercase tracking-wider text-ink-3">
-              Demo walkthrough · {i + 1}/{STEPS.length}
+              Guided tour · {i + 1}/{STEPS.length}
             </span>
             <button aria-label="Close demo" className="text-ink-3 hover:text-ink" onClick={() => setOpen(false)}>
               ×

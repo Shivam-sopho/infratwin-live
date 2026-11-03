@@ -29,6 +29,7 @@ export const api = {
         glimmer_configured: boolean;
         spark_open_configured: boolean;
         modal_configured: boolean;
+        sam3d: { objects: boolean; body: boolean };
         auth_required: boolean;
         budget: { spent_usd: number; cap_usd: number };
       }>,
@@ -44,6 +45,7 @@ export const api = {
     }).then(json),
   resetSim: () => fetch("/api/sim/reset", { method: "POST" }).then(json),
   demoReset: () => fetch("/api/demo/reset", { method: "POST" }).then(json),
+  demoFinding: () => fetch("/api/demo/finding", { method: "POST" }).then(json<Finding>),
   replay: (assetId: string, body: { playing?: boolean; hours_per_s?: number; seek?: string }) =>
     fetch(`/api/replay/${assetId}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }).then(json),
   vocabulary: () => fetch("/api/inspect/vocabulary").then(json<Concept[]>),

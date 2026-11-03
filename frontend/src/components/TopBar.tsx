@@ -22,7 +22,15 @@ export function TopBar() {
   useEffect(() => {
     const load = () =>
       api.health().then(
-        (h) =>
+        (h) => {
+          useTwin.getState().setCaps({
+            meta: h.meta_api_configured,
+            glimmer: h.glimmer_configured,
+            sparkOpen: h.spark_open_configured,
+            modal: h.modal_configured,
+            sam3dObjects: h.sam3d.objects,
+            sam3dBody: h.sam3d.body,
+          });
           setHealth({
             meta: h.meta_api_configured,
             glimmer: h.glimmer_configured,
@@ -30,7 +38,8 @@ export function TopBar() {
             modal: h.modal_configured,
             spent: h.budget.spent_usd,
             cap: h.budget.cap_usd,
-          }),
+          });
+        },
         () => undefined,
       );
     load();
@@ -47,11 +56,16 @@ export function TopBar() {
       </div>
       <div className="ml-auto flex items-center gap-2">
         <Pill ok={connected} label={connected ? "Telemetry live" : "Telemetry offline"} />
-        <Pill ok={metaReady} label={metaReady ? "Meta API key set" : "Meta API key missing"} />
-        <span className="hidden xl:inline-flex">
+        <span
+          title={[
+            `Meta Model API: ${metaReady ? "SAM 3.1, Muse Spark 1.3, Muse Wonder, Muse Image, Muse Voice Transcribe" : "not configured"}`,
+            `Muse Glimmer: ${health.glimmer ? "live" : "not configured"}`,
+            `Muse Spark Open + sandbox: ${health.sparkOpen && health.modal ? "live" : "not configured"}`,
+          ].join("\n")}
+        >
           <Pill
-            ok={health.glimmer && health.sparkOpen && health.modal}
-            label={`Glimmer ${health.glimmer ? "✓" : "–"} · Spark Open ${health.sparkOpen ? "✓" : "–"} · Modal ${health.modal ? "✓" : "–"}`}
+            ok={metaReady}
+            label={metaReady ? `Meta AI · ${5 + (health.glimmer ? 1 : 0) + (health.sparkOpen && health.modal ? 1 : 0)} models live` : "Meta API key missing"}
           />
         </span>
         {health.cap > 0 && (
