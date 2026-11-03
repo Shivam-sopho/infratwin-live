@@ -8,5 +8,6 @@
 **/.pytest_cache
 backend/data
 demo-media
+frontend/public/demo/narration/*.wav
 frontend/dist
 modal_workers

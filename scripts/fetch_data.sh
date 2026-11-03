@@ -3,8 +3,11 @@
 #   - dacl10k bridge-inspection images + expert labels (Hugging Face mirror Voxel51/dacl10k)
 #   - KW51 railway bridge tracked modes + Oct 2018 train passages (Zenodo 10.5281/zenodo.3745914, CC BY-NC-SA 4.0)
 #   - KW51 finite-element model and blueprints (Zenodo 10.5281/zenodo.17366772, CC BY-NC-SA 4.0)
+# Usage: fetch_data.sh            everything (incl. KW51 train passages, FE model, Kokoro TTS)
+#        fetch_data.sh --runtime  only what the running app needs (KW51 tracked modes + dacl10k samples)
 set -euo pipefail
 cd "$(dirname "$0")/.."
+RUNTIME_ONLY=${1:-}
 HF=https://huggingface.co/datasets/Voxel51/dacl10k/resolve/main
 
 mkdir -p demo-media/dacl10k/images demo-media/kw51
@@ -23,6 +26,12 @@ if [ ! -f demo-media/kw51/trackedmodes/trackedmodes/trackedmodes.mat ]; then
   curl -fsSL -o demo-media/kw51/trackedmodes.zip "https://zenodo.org/records/3745914/files/trackedmodes.zip"
   unzip -oq demo-media/kw51/trackedmodes.zip -d demo-media/kw51/trackedmodes
 fi
+if [ "$RUNTIME_ONLY" = "--runtime" ]; then
+  rm -f demo-media/dacl10k/samples.json demo-media/kw51/trackedmodes.zip  # keep the image small
+  echo "Done (runtime data)."
+  exit 0
+fi
+
 echo "KW51: finite-element model + blueprints (5 MB)…"
 mkdir -p demo-media/kw51/fe_model
 for f in readme.txt model_kw51.m modal_analysis.m select_sensors.m simulate_trainpassage.m xrail_2_P.m overview.pdf blueprints.zip; do
