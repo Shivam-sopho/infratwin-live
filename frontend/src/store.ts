@@ -30,6 +30,7 @@ interface TwinState {
   timeTravelFindingId: string | null;
   authRequired: boolean;
   caps: Capabilities;
+  capsKnown: boolean;
   setCaps: (c: Capabilities) => void;
   inspectRequest: { sample: string; nonce: number } | null;
   tourOpen: boolean;
@@ -79,7 +80,8 @@ export const useTwin = create<TwinState>((set, get) => ({
   timeTravelFindingId: null,
   authRequired: false,
   caps: { meta: false, glimmer: false, sparkOpen: false, modal: false, sam3dObjects: false, sam3dBody: false },
-  setCaps: (caps) => set({ caps }),
+  capsKnown: false,
+  setCaps: (caps) => set({ caps, capsKnown: true }),
   inspectRequest: null,
   tourOpen: false,
   setTourOpen: (tourOpen) => set({ tourOpen }),

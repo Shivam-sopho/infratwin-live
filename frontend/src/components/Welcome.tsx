@@ -31,6 +31,7 @@ const PILLARS = [
 export function Welcome() {
   const [open, setOpen] = useState(() => !seen());
   const setTourOpen = useTwin((s) => s.setTourOpen);
+  const noKey = useTwin((s) => s.capsKnown && !s.caps.meta);
   if (!open) return null;
   const close = (tour: boolean) => {
     try {
@@ -63,8 +64,16 @@ export function Welcome() {
         <p className="mt-4 text-[11px] text-ink-3">
           Real data: KW51 monitoring (KU Leuven) and dacl10k inspection photos. The Pune corridor assets are simulated and labelled as such.
         </p>
+        {noKey && (
+          <p className="mt-4 rounded-md border border-watch/50 bg-watch/10 px-3 py-2 text-xs text-ink">
+            No Meta API key is configured, so the AI features are off. Add <code>MODEL_API_KEY=…</code> to <code>.env</code> (or
+            re-run <code>./start.sh</code>) and restart. The map, the twins, KW51's real data and the photo library work without it.
+          </p>
+        )}
         <div className="mt-5 flex flex-wrap gap-2">
-          <button onClick={() => close(true)} className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-bg">
+          <button
+            disabled={noKey}
+            onClick={() => close(true)} className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-bg disabled:opacity-40">
             ▶ Play the demo (≈3 min, runs by itself)
           </button>
           <button onClick={() => close(false)} className="rounded-md border border-line px-4 py-2 text-sm text-ink-2 hover:text-ink">

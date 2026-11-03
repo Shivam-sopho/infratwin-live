@@ -10,6 +10,26 @@ measures it in millimetres, and plans a drone flight that can actually see it.
 
 ---
 
+## Run it in 2 minutes
+
+```bash
+git clone https://github.com/Shivam-sopho/infratwin-live.git
+cd infratwin-live
+./start.sh
+```
+
+`start.sh` asks once for a **Meta Model API key** (from [dev.meta.ai](https://dev.meta.ai); it is kept in the local,
+git-ignored `.env`), builds and starts everything, and opens **http://localhost:8000**. Then click **▶ Play demo**:
+the whole story runs by itself in about three minutes, narrated, using the live models.
+
+- **With Docker Desktop** (recommended): nothing else to install. The first run builds the image and downloads the
+  real datasets (a few minutes); later runs start in seconds. Equivalent: `docker compose up --build`.
+- **Without Docker**: needs Node 20+ and [uv](https://docs.astral.sh/uv/); the app opens on http://localhost:5173.
+- **Without an API key**: the map, the twins, KW51's real data and the photo library still work; AI features are off
+  and the app says so.
+
+---
+
 ## The workflow
 
 | Step | What happens | Models |
@@ -176,7 +196,7 @@ hides them when they are not configured.
 
 ---
 
-## Quick start (development)
+## Development
 
 Requirements: Node 20+ and [uv](https://docs.astral.sh/uv/) (uv installs Python 3.12 automatically).
 

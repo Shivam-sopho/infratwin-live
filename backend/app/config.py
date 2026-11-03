@@ -6,7 +6,8 @@ BACKEND_DIR = Path(__file__).resolve().parent.parent
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=(".env", "../.env"), extra="ignore")
+    # env_ignore_empty: a blank line such as "KW51_PATH=" in .env keeps the default instead of becoming "".
+    model_config = SettingsConfigDict(env_file=(".env", "../.env"), extra="ignore", env_ignore_empty=True)
 
     # Meta Model API (https://dev.meta.ai/docs) — OpenAI-compatible, Bearer auth.
     model_api_key: str = ""

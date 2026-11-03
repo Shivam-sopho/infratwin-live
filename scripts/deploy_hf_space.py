@@ -1,6 +1,7 @@
 """Deploy InfraTwin-Live to a Hugging Face Docker Space.
 
-    HF_TOKEN=hf_... uv run --with huggingface_hub python scripts/deploy_hf_space.py <hf-username> [space-name]
+    uv run --with huggingface_hub python scripts/deploy_hf_space.py <hf-username> [space-name]
+(uses `hf auth login` credentials, or HF_TOKEN if set)
 
 Creates (or updates) the public Space <user>/<space-name>, stores MODEL_API_KEY from .env as a private Space
 secret, sets runtime variables, and uploads the repository (minus secrets, local data and build output). The
@@ -43,7 +44,7 @@ def main() -> None:
     user = sys.argv[1]
     space = sys.argv[2] if len(sys.argv) > 2 else "infratwin-live"
     repo_id = f"{user}/{space}"
-    api = HfApi(token=os.environ["HF_TOKEN"])
+    api = HfApi(token=os.environ.get("HF_TOKEN"))  # None -> the token saved by `hf auth login`
 
     api.create_repo(repo_id, repo_type="space", space_sdk="docker", private=False, exist_ok=True)
     key = read_env("MODEL_API_KEY")

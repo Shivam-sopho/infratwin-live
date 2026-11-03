@@ -84,6 +84,7 @@ export function Autopilot() {
 
     (async () => {
       try {
+        if (!s().caps.meta) throw new Error("The demo needs a Meta API key: add MODEL_API_KEY to .env (or re-run ./start.sh) and restart.");
         // 1 · the network
         const t1 = Date.now() / 1000;
         await api.demoReset();

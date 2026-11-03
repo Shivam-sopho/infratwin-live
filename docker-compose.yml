@@ -1,0 +1,19 @@
+# docker compose up --build   ->   http://localhost:8000
+services:
+  infratwin:
+    build: .
+    image: infratwin-live
+    ports:
+      - "8000:8000"
+    env_file: .env
+    environment:
+      # Container paths (take precedence over anything in .env)
+      DATA_DIR: /data
+      FRONTEND_DIST: /app/frontend/dist
+      SAMPLES_DIR: /app/demo-media/dacl10k
+      KW51_PATH: /app/demo-media/kw51/trackedmodes/trackedmodes/trackedmodes.mat
+    volumes:
+      - infratwin-data:/data
+    restart: unless-stopped
+volumes:
+  infratwin-data: {}
