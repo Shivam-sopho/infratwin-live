@@ -106,6 +106,8 @@ export interface Finding {
   metrology: Metrology | null;
   mask_png?: string | null;
   thumbnail_mask_png?: string | null;
+  severity?: "low" | "medium" | "high" | null;
+  note?: string | null;
   thumbnail: string;
 }
 
@@ -154,6 +156,9 @@ export interface Detection {
   host_id: string | null;
   host_overlap: number | null;
   metrology?: Metrology | null;
+  severity?: "low" | "medium" | "high" | null;
+  note?: string | null;
+  polyline?: [number, number][] | null;
 }
 
 export interface ConceptRun {
@@ -165,6 +170,9 @@ export interface ConceptRun {
 }
 
 export interface SegmentationReport {
+  mode?: "ai_inspector";
+  summary?: string;
+  recommended_action?: string;
   model: string;
   width: number;
   height: number;

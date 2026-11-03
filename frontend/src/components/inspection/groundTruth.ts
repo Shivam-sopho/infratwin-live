@@ -9,6 +9,15 @@ export const DACL_TO_CONCEPT: Record<string, string> = {
   Efflorescence: "efflorescence",
   Rust: "rust stain",
   Wetspot: "wet spot",
+  Cavity: "cavity",
+};
+
+/** Concept names either pipeline may use for a dacl10k class (concept search vs AI Inspector wording). */
+const ALIASES: Record<string, string[]> = {
+  Crack: ["concrete crack", "crack"],
+  ACrack: ["alligator crack", "crack"],
+  Spalling: ["concrete spalling", "spalling"],
+  Rust: ["rust stain", "rust"],
 };
 
 export interface ClassScore {
@@ -43,7 +52,8 @@ export function scoreAgainstGroundTruth(sample: SampleItem, detections: Detectio
     const concept = DACL_TO_CONCEPT[label] ?? null;
     const s = byLabel.get(label) ?? { label, concept, gt: 0, found: 0 };
     s.gt += 1;
-    if (concept && detections.some((d) => d.concept === concept && overlap(d.box, box) >= 0.3)) s.found += 1;
+    const names = ALIASES[label] ?? (concept ? [concept] : []);
+    if (concept && detections.some((d) => names.includes(d.concept) && overlap(d.box, box) >= 0.3)) s.found += 1;
     byLabel.set(label, s);
   }
   return [...byLabel.values()].sort((a, b) => Number(!!b.concept) - Number(!!a.concept) || b.gt - a.gt);

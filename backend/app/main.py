@@ -28,6 +28,7 @@ from .meta_client import MUSE_SPARK, MetaAPIError, meta
 from .models import Asset
 from .sam31 import DEFAULT_CONCEPTS, Concept, SegmentationReport, prepare_image, segment_image
 from .sam31_video import VideoReport, segment_video, transcode
+from .inspector import InspectorReport, ai_inspect
 from .openweight import glimmer, spark_open
 from . import sam3d
 from .sandbox import modal_configured, run_python
@@ -287,6 +288,26 @@ async def inspect_segment(file: UploadFile, concepts: str | None = Form(None), c
 
     budget.charge("sam31_image", COST["sam31_image_per_concept"] * len(concept_list))
     return await segment_image(image_url, width, height, concept_list, scale_ref)
+
+
+@app.post("/api/inspect/ai", response_model=InspectorReport)
+async def inspect_ai(file: UploadFile, component_id: str | None = Form(None)):
+    """AI Inspector: Muse Spark reads the photo (defects, elements, severity, notes), SAM 3.1 masks them."""
+    if not meta.configured:
+        raise HTTPException(503, "MODEL_API_KEY is not set")
+    scale_ref = _scale_ref(component_id)
+    data = await file.read(MAX_UPLOAD_BYTES + 1)
+    if len(data) > MAX_UPLOAD_BYTES:
+        raise HTTPException(413, "Image larger than 20 MB")
+    try:
+        image_url, width, height = await asyncio.to_thread(prepare_image, data)
+    except (UnidentifiedImageError, Image.DecompressionBombError, OSError):
+        raise HTTPException(400, "Not a readable image")
+    budget.charge("ai_inspector", COST["spark_call"] + 12 * COST["sam31_image_per_concept"])
+    try:
+        return await ai_inspect(image_url, width, height, scale_ref)
+    except (MetaAPIError, ValidationError) as e:
+        raise HTTPException(502, f"AI inspection failed: {e}")
 
 
 @app.post("/api/inspect/segment-video", response_model=VideoReport)

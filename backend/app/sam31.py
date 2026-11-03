@@ -75,6 +75,10 @@ class Detection(BaseModel):
     host_id: str | None = None
     host_overlap: float | None = None
     metrology: Metrology | None = None
+    # AI Inspector extras: inspector's severity and note, and a traced centre line for linear defects.
+    severity: Literal["low", "medium", "high"] | None = None
+    note: str | None = None
+    polyline: list[list[int]] | None = None
 
 
 class ConceptRun(BaseModel):

@@ -54,6 +54,12 @@ export const api = {
     if (componentId) body.append("component_id", componentId);
     return fetch("/api/inspect/segment", { method: "POST", body }).then(json<SegmentationReport>);
   },
+  aiInspect: (file: File, componentId?: string) => {
+    const body = new FormData();
+    body.append("file", file);
+    if (componentId) body.append("component_id", componentId);
+    return fetch("/api/inspect/ai", { method: "POST", body }).then(json<SegmentationReport>);
+  },
   segmentVideo: (file: File, concepts: Concept[], componentId?: string) => {
     const body = new FormData();
     body.append("file", file);

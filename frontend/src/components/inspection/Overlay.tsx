@@ -21,7 +21,28 @@ export function Overlay({
   const stroke = Math.max(1, W / 800) * (active ? 2 : 1);
   const showLabel = active || d.category === "defect";
   const maskId = `m-${d.id}`;
-  const label = `${detLabel(d)}${d.confidence != null ? ` · ${d.confidence.toFixed(2)}` : ""}`;
+  const label = `${detLabel(d)}${d.severity ? ` · ${d.severity}` : d.confidence != null ? ` · ${d.confidence.toFixed(2)}` : ""}`;
+  if (d.polyline && d.polyline.length >= 2) {
+    // Linear defect (crack, exposed rebar): the inspector-traced centre line, not a mask.
+    const [px, py] = d.polyline[0];
+    return (
+      <g onMouseEnter={() => onHover?.(d.id)} onMouseLeave={() => onHover?.(null)} className={onHover ? "cursor-pointer" : undefined}>
+        <polyline points={d.polyline.map((p) => p.join(",")).join(" ")} fill="none" stroke="#0b0f14" strokeOpacity={0.6} strokeWidth={stroke * 5} strokeLinecap="round" strokeLinejoin="round" />
+        <polyline points={d.polyline.map((p) => p.join(",")).join(" ")} fill="none" stroke={color} strokeWidth={stroke * (active ? 4 : 3)} strokeLinecap="round" strokeLinejoin="round" />
+        {d.polyline.map(([x, y], i) => (
+          <circle key={i} cx={x} cy={y} r={stroke * 3} fill={color} />
+        ))}
+        {showLabel && (
+          <g transform={`translate(${px} ${Math.max(py - font * 1.6, 0)})`}>
+            <rect width={label.length * font * 0.58 + font * 0.6} height={font * 1.4} fill={color} rx={font * 0.2} />
+            <text x={font * 0.3} y={font * 1.02} fontSize={font} fill="#fff" fontWeight={500}>
+              {label}
+            </text>
+          </g>
+        )}
+      </g>
+    );
+  }
   return (
     <g onMouseEnter={() => onHover?.(d.id)} onMouseLeave={() => onHover?.(null)} className={onHover ? "cursor-pointer" : undefined}>
       {d.mask && (

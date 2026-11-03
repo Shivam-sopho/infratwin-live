@@ -28,6 +28,8 @@ class FindingIn(BaseModel):
     metrology: Metrology | None = None
     mask_png: str | None = None  # box-local defect mask (white RGBA, alpha = mask) for independent re-measurement
     thumbnail_mask_png: str | None = None  # same mask aligned to the thumbnail crop, for SAM 3D lifting
+    severity: Literal["low", "medium", "high"] | None = None  # AI Inspector's rating
+    note: str | None = Field(default=None, max_length=500)
     thumbnail: str
 
     @field_validator("thumbnail")

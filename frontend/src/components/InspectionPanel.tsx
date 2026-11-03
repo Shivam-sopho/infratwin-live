@@ -15,6 +15,8 @@ const VIDEO_FPS = 5;
 const VIDEO_MAX_S = 20;
 const MIN_BILLED_FRAMES = 50;
 const PIN_CROP_PX = 512; // large enough for Muse Image time-travel edits
+const AI_INSPECT_COST = 0.03; // one Muse Spark vision call + ~8 SAM 3.1 box prompts
+const SEV = { low: "nominal", medium: "watch", high: "critical" } as const;
 
 type Run = { kind: "image"; report: SegmentationReport } | { kind: "video"; report: VideoReport };
 
@@ -32,6 +34,8 @@ interface DefectRow {
   metrology: Metrology | null;
   maskPng: string | null;
   maskBounds: [number, number, number, number] | null;
+  severity: "low" | "medium" | "high" | null;
+  note: string | null;
 }
 
 function defectRows(run: Run): DefectRow[] {
@@ -51,6 +55,8 @@ function defectRows(run: Run): DefectRow[] {
         metrology: d.metrology ?? null,
         maskPng: d.mask?.png ?? null,
         maskBounds: d.mask?.bounds ?? null,
+        severity: d.severity ?? null,
+        note: d.note ?? null,
       }));
   }
   return run.report.tracks
@@ -70,6 +76,8 @@ function defectRows(run: Run): DefectRow[] {
         metrology: t.metrology,
         maskPng: best.mask?.png ?? null,
         maskBounds: best.mask?.bounds ?? null,
+        severity: null,
+        note: null,
       };
     });
 }
@@ -110,8 +118,9 @@ export function InspectionPanel() {
   const [zone, setZone] = useState<WorkZoneReport | null>(null);
   const [samples, setSamples] = useState<SampleItem[]>([]);
   const [sample, setSample] = useState<SampleItem | null>(null);
-  const [showGt, setShowGt] = useState(true);
+  const [showGt, setShowGt] = useState(false);
   const [radius, setRadius] = useState(3);
+  const [mode, setMode] = useState<"ai" | "concepts">("ai");
   const input = useRef<HTMLInputElement>(null);
   const imgRef = useRef<HTMLImageElement | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -166,7 +175,8 @@ export function InspectionPanel() {
   const H = run?.report.height ?? natural?.h ?? 1;
 
   const estFrames = Math.max(MIN_BILLED_FRAMES, Math.ceil(Math.min(duration ?? VIDEO_MAX_S, VIDEO_MAX_S) * VIDEO_FPS));
-  const estCost = isVideo ? selected.length * estFrames * COST_PER_FRAME : selected.length * COST_PER_IMAGE;
+  const aiMode = mode === "ai" && !isVideo;
+  const estCost = isVideo ? selected.length * estFrames * COST_PER_FRAME : aiMode ? AI_INSPECT_COST : selected.length * COST_PER_IMAGE;
 
   const loadSample = async (name: string) => {
     const it = samples.find((x) => x.name === name);
@@ -189,15 +199,17 @@ export function InspectionPanel() {
   };
 
   const segment = async () => {
-    if (!file || selected.length === 0) return;
-    setBusy(isVideo ? "Transcoding + tracking…" : "Segmenting…");
+    if (!file || (!aiMode && selected.length === 0)) return;
+    setBusy(isVideo ? "Transcoding + tracking…" : aiMode ? "Muse Spark reading the photo → SAM 3.1 masking…" : "Segmenting…");
     setError(null);
     setNotice(null);
     const concepts = selected.map(({ text, category }) => ({ text, category }));
     try {
       const next: Run = isVideo
         ? { kind: "video", report: await api.segmentVideo(file, concepts, target || undefined) }
-        : { kind: "image", report: await api.segment(file, concepts, target || undefined) };
+        : aiMode
+          ? { kind: "image", report: await api.aiInspect(file, target || undefined) }
+          : { kind: "image", report: await api.segment(file, concepts, target || undefined) };
       setRun(next);
       setPinSel(new Set(defectRows(next).map((r) => r.id)));
     } catch (e) {
@@ -233,6 +245,8 @@ export function InspectionPanel() {
           host_label: r.hostId ? (labelOf[r.hostId] ?? null) : null,
           frames_tracked: r.frames,
           metrology: r.metrology,
+          severity: r.severity,
+          note: r.note,
           mask_png: r.maskPng,
           thumbnail_mask_png: thumbnailMask,
           thumbnail,
@@ -326,12 +340,14 @@ export function InspectionPanel() {
           {targetSelect}
           <button
             onClick={segment}
-            disabled={!file || !!busy || selected.length === 0}
+            disabled={!file || !!busy || (!aiMode && selected.length === 0)}
             className="rounded-md bg-accent px-2.5 py-1 text-xs font-medium text-bg disabled:opacity-40"
           >
             {busy && busy !== "Pinning…"
               ? busy
-              : `${isVideo ? "Track" : "Run"} SAM 3.1 · ${selected.length} concepts · ~$${estCost.toFixed(3)}`}
+              : aiMode
+                ? `Run AI Inspector · Muse Spark + SAM 3.1 · ~$${estCost.toFixed(2)}`
+                : `${isVideo ? "Track" : "Run"} SAM 3.1 · ${selected.length} concepts · ~$${estCost.toFixed(3)}`}
           </button>
           {file && (
             <span className="truncate text-xs text-ink-3">
@@ -340,7 +356,29 @@ export function InspectionPanel() {
             </span>
           )}
         </div>
-        {(["structural", "defect"] as const).map((cat) => (
+        {!isVideo && (
+          <div className="flex items-center gap-1 text-[11px]" role="radiogroup" aria-label="Inspection mode">
+            {(
+              [
+                ["ai", "AI Inspector", "Muse Spark reads the photo like an inspector; SAM 3.1 makes it pixel-accurate"],
+                ["concepts", "Concept search", "SAM 3.1 alone, one text concept per request"],
+              ] as const
+            ).map(([m, label, hint]) => (
+              <button
+                key={m}
+                role="radio"
+                aria-checked={mode === m}
+                title={hint}
+                onClick={() => setMode(m)}
+                className={`rounded-full border px-2 py-0.5 ${mode === m ? "border-accent text-ink" : "border-line text-ink-3 hover:text-ink-2"}`}
+              >
+                {label}
+              </button>
+            ))}
+            <span className="ml-1 text-ink-3">{aiMode ? "Muse Spark locates, rates and describes each defect; SAM 3.1 masks it" : "SAM 3.1 text-concept segmentation"}</span>
+          </div>
+        )}
+        {!aiMode && (["structural", "defect"] as const).map((cat) => (
           <div key={cat} className="flex flex-wrap items-center gap-1.5">
             <span className="w-16 text-[11px] uppercase tracking-wider text-ink-3">{cat === "structural" ? "Elements" : "Defects"}</span>
             {vocab
@@ -452,6 +490,18 @@ export function InspectionPanel() {
               {run.report.width}×{run.report.height}px{run.kind === "video" && ` · ${run.report.n_frames} frames`} · est. ${run.report.est_cost_usd.toFixed(4)}
             </span>
           </div>
+          {run.kind === "image" && run.report.summary && (
+            <div className="mb-2 rounded-md border border-accent/40 bg-accent/5 px-2.5 py-2">
+              <div className="mb-0.5 text-[10px] uppercase tracking-wider text-ink-3">Inspector's assessment · Muse Spark</div>
+              <p className="text-ink">{run.report.summary}</p>
+              {run.report.recommended_action && (
+                <p className="mt-1 text-ink-2">
+                  <span className="text-ink-3">Recommended: </span>
+                  {run.report.recommended_action}
+                </p>
+              )}
+            </div>
+          )}
           {failed.length > 0 && (
             <div className="mb-2 rounded border border-critical/40 px-2 py-1 text-ink-2">
               {failed.length} concept{failed.length > 1 ? "s" : ""} failed: {failed.map((c) => `${c.text} (${c.error})`).join("; ")}
@@ -468,7 +518,7 @@ export function InspectionPanel() {
                     <th className="pb-1 font-normal">Defect</th>
                     <th className="pb-1 font-normal">On element</th>
                     {run.kind === "video" && <th className="pb-1 text-right font-normal">Frames</th>}
-                    <th className="pb-1 text-right font-normal">Conf.</th>
+                    <th className="pb-1 text-right font-normal">{aiMode ? "Severity" : "Conf."}</th>
                     {measured ? <th className="pb-1 text-right font-normal">Measured</th> : <th className="pb-1 text-right font-normal">Area px</th>}
                   </tr>
                 </thead>
@@ -501,12 +551,24 @@ export function InspectionPanel() {
                           }
                         />
                       </td>
-                      <td className="py-1 text-ink">{labelOf[r.id]}</td>
+                      <td className="py-1 text-ink">
+                        {labelOf[r.id]}
+                        {r.note && <div className="max-w-xs text-[11px] leading-snug text-ink-3">{r.note}</div>}
+                      </td>
                       <td className="py-1 text-ink-2">
                         {r.hostId ? `${labelOf[r.hostId] ?? r.hostId} · ${Math.round((r.hostOverlap ?? 0) * 100)}%` : <span className="text-ink-3">unattributed</span>}
                       </td>
                       {run.kind === "video" && <td className="py-1 text-right tabular-nums text-ink-2">{r.frames}</td>}
-                      <td className="py-1 text-right tabular-nums text-ink-2">{r.confidence?.toFixed(2) ?? "—"}</td>
+                      <td className="py-1 text-right tabular-nums text-ink-2">
+                        {r.severity ? (
+                          <span className="inline-flex items-center gap-1">
+                            <span style={{ color: STATUS_COLOR[SEV[r.severity]] }}>{STATUS_ICON[SEV[r.severity]]}</span>
+                            {r.severity}
+                          </span>
+                        ) : (
+                          (r.confidence?.toFixed(2) ?? "—")
+                        )}
+                      </td>
                       {measured ? (
                         <td className="py-1 text-right tabular-nums text-ink" title={r.metrology ? metrologyTooltip(r.metrology) : "No scale: defect not on a measurable host element"}>
                           {r.metrology ? (
