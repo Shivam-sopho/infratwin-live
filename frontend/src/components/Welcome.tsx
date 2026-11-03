@@ -74,7 +74,7 @@ export function Welcome() {
           <button
             disabled={noKey}
             onClick={() => close(true)} className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-bg disabled:opacity-40">
-            ▶ Play the demo (≈3 min, runs by itself)
+            ▶ Play the demo (≈2½ min, runs by itself)
           </button>
           <button onClick={() => close(false)} className="rounded-md border border-line px-4 py-2 text-sm text-ink-2 hover:text-ink">
             Explore on my own

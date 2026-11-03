@@ -58,6 +58,7 @@ export function TimeTravel() {
     <div className="fixed inset-0 z-40 grid place-items-center bg-black/60 p-4" onClick={() => close(null)}>
       <div
         role="dialog"
+        data-spot="timetravel"
         aria-label="Defect time-travel preview"
         className="flex max-h-full w-full max-w-3xl flex-col gap-3 overflow-y-auto rounded-lg border border-line bg-panel p-4"
         onClick={(e) => e.stopPropagation()}

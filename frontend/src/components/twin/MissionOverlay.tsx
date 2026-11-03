@@ -51,7 +51,7 @@ function CameraGlyph({ vp, color, label }: { vp: Viewpoint; color: string; label
         <meshBasicMaterial color={color} />
       </mesh>
       {label && (
-        <Html position={[0, 0.7, 0]} center style={{ pointerEvents: "none" }}>
+        <Html position={[0, 0.7, 0]} center zIndexRange={[30, 0]} style={{ pointerEvents: "none" }}>
           <div className="whitespace-nowrap rounded border border-line bg-bg/90 px-1.5 py-0.5 text-[11px] text-ink">{label}</div>
         </Html>
       )}

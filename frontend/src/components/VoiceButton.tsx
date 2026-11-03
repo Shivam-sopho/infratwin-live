@@ -63,7 +63,7 @@ export function VoiceButton() {
   };
 
   return (
-    <div className="relative">
+    <div className="keep relative">
       <button
         onClick={state === "recording" ? stop : start}
         disabled={state === "processing"}
@@ -78,7 +78,7 @@ export function VoiceButton() {
       </button>
 
       {(result || error) && (
-        <div className="absolute right-0 top-9 z-20 w-96 rounded-md border border-line bg-panel p-3 text-xs shadow-xl">
+        <div data-spot="voice" className="absolute right-0 top-9 z-20 w-96 rounded-md border border-line bg-panel p-3 text-xs shadow-xl">
           <div className="mb-1 flex items-start justify-between gap-2">
             <span className="text-[11px] uppercase tracking-wider text-ink-3">Field command</span>
             <button aria-label="Dismiss" className="text-ink-3 hover:text-ink" onClick={() => (setResult(null), setError(null))}>

@@ -106,3 +106,22 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .scan-line { animation: none; top: 36%; }
 }
+
+/* Presentation layout: columns animate between stages of the self-running demo. */
+@media (min-width: 1024px) {
+  .app-grid {
+    grid-template-columns: var(--cols);
+    transition: grid-template-columns 900ms cubic-bezier(0.4, 0, 0.2, 1);
+  }
+}
+.spotlight {
+  position: fixed;
+  z-index: 45;
+  pointer-events: none;
+  border-radius: 10px;
+  box-shadow: 0 0 0 4px rgb(56 189 248 / 0.85), 0 0 24px 6px rgb(56 189 248 / 0.35), 0 0 0 100vmax rgb(0 0 0 / 0.5);
+  transition: left 700ms ease, top 700ms ease, width 700ms ease, height 700ms ease, opacity 400ms ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  .app-grid, .spotlight { transition: none; }
+}

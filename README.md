@@ -163,8 +163,9 @@ The app labels every asset's data source on screen.
 - **Graceful degradation**: each model is optional. Missing keys show "not configured" instead of failing, and
   the top bar shows which models are live.
 - **Self-running demo**: a first-visit welcome explains the product in three pillars, and **▶ Play demo** runs the
-  whole story by itself in about 3 minutes, with narrated captions (voice by Kokoro, an open-source neural TTS):
-  the network; KW51 real data with Muse Spark's assessment; the AI Inspector on a real photo; Muse Wonder seeing
+  whole story by itself in about 2½ minutes, as a presentation: the layout re-focuses on each step, a spotlight
+  marks what the narration is about, and captions (voice by Kokoro, an open-source neural TTS) sit in a lower
+  third that never covers the app. It opens with the problem, then shows the network; KW51 real data with Muse Spark's assessment; the AI Inspector on a real photo; Muse Wonder seeing
   around the downpipe; Muse Image two years on and repaired; a spoken field command through the voice pipeline.
   Every step uses live models and moves on when its result is on screen (Space pauses, → skips, Esc exits).
   *Reset* clears live state between takes, and pinned findings are kept.
@@ -322,3 +323,8 @@ Datasets are downloaded locally by `scripts/fetch_data.sh` into `demo-media/` an
 - **KW51 geometry** is illustrative; KU Leuven's published finite-element model ([Zenodo 17366772](https://zenodo.org/records/17366772)) could replace it.
 - **Drone planner** follows ASIP-Planner's idea (online view-angle adaptation around occlusions); aligning it
   step-by-step with the paper's published algorithm is planned.
+
+## License
+
+MIT, see [LICENSE](LICENSE). The datasets are not redistributed here: KW51 is CC BY-NC-SA 4.0 (KU Leuven) and
+dacl10k is under its authors' terms; `scripts/fetch_data.sh` downloads both from their original sources.

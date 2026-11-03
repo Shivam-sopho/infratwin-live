@@ -16,6 +16,7 @@ function Pill({ ok, label }: { ok: boolean; label: string }) {
 
 export function TopBar() {
   const connected = useTwin((s) => s.connected);
+  const presenting = useTwin((s) => s.tourOpen);
   const [health, setHealth] = useState({ meta: false, glimmer: false, sparkOpen: false, modal: false, spent: 0, cap: 0 });
 
   useEffect(() => {
@@ -53,7 +54,7 @@ export function TopBar() {
         <span className="font-semibold tracking-tight text-ink">InfraTwin-Live</span>
         <span className="hidden text-xs text-ink-3 md:inline">Geo-anchored structural health digital twin</span>
       </div>
-      <div className="ml-auto flex items-center gap-2">
+      <div className={`ml-auto flex items-center gap-2 ${presenting ? "[&>*:not(.keep)]:hidden" : ""}`}>
         <Pill ok={connected} label={connected ? "Telemetry live" : "Telemetry offline"} />
         <span
           title={[
@@ -87,7 +88,7 @@ export function TopBar() {
         </button>
         <button
           onClick={() => useTwin.getState().setTourOpen(true)}
-          className="rounded-md bg-accent px-3 py-1 text-xs font-medium text-bg hover:opacity-90"
+          className="keep rounded-md bg-accent px-3 py-1 text-xs font-medium text-bg hover:opacity-90"
           title="Runs the whole story by itself, with captions (Space pauses, → skips, Esc exits)"
         >
           ▶ Play demo

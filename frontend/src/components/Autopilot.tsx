@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../api";
 import N from "../narration.json";
-import { useTwin } from "../store";
+import { type Focus, useTwin } from "../store";
 import { runVoiceCommand } from "../voiceCommand";
 
 const PHOTO = "dacl10k_v2_train_3113.jpg"; // real inspection photo: spalling + corroded exposed rebar
@@ -27,6 +27,8 @@ export function Autopilot() {
   const setRunning = useTwin((s) => s.setTourOpen);
   const [cap, setCap] = useState<Caption | null>(null);
   const [closing, setClosing] = useState(false);
+  const [opening, setOpening] = useState(false);
+  const glimmer = useTwin((st) => st.caps.glimmer);
   const [paused, setPaused] = useState(false);
   const [narrate, setNarrate] = useState(true);
   const narrateRef = useRef(true);
@@ -81,11 +83,12 @@ export function Autopilot() {
     };
     const working = (w?: string) => setCap((p) => (p ? { ...p, working: w } : p));
     const s = () => useTwin.getState();
+    const stage = (focus: Focus | null, spot: string[] = []) => s().setStage({ focus, spot });
 
     (async () => {
       try {
         if (!s().caps.meta) throw new Error("The demo needs a Meta API key: add MODEL_API_KEY to .env (or re-run ./start.sh) and restart.");
-        // 1 · the network
+        // 0 · the problem
         const t1 = Date.now() / 1000;
         await api.demoReset();
         s().setTimeTravel(null);
@@ -93,32 +96,46 @@ export function Autopilot() {
         s().selectAsset(null);
         s().setCenterTab("twin");
         s().setSideTab("alerts");
-        await line(1, "s1", 6000);
+        stage("map");
+        setOpening(true);
+        play("/demo/narration/s0.mp3");
+        await wait(5000);
+        await waitFor(() => !speaking(), 20000);
+        setOpening(false);
+
+        // 1 · the network
+        stage("map", ["map"]);
+        await line(1, "s1", 4000);
 
         // 2 · real bridge, real data
+        stage("twin+side", ["map", "center"]);
         s().selectAsset("KW51");
         s().selectComponent("KW51.DECK");
         s().setCenterTab("twin");
         s().setSideTab("alerts");
         await api.replay("KW51", { seek: "2019-04-20", hours_per_s: 96, playing: true });
-        await line(2, "s2a", 8000, { models: "Real data · KU Leuven" });
-        await line(2, "s2b", 3000, { models: "Muse Glimmer · Muse Spark" });
-        working("Muse Spark is assessing the alert, streaming its reasoning on the right…");
+        await line(2, "s2a", 4000, { models: "Real data · KU Leuven" });
+        stage("twin+side", ["center", "side"]);
         s().setSideTab("twin");
+        await line(2, "s2b", 3000, { models: s().caps.glimmer ? "Muse Glimmer · Muse Spark" : "Muse Spark" });
+        working("Muse Spark is assessing the alert, streaming its reasoning on the right…");
         await waitFor(() => s().triages.some((t) => t.asset_id === "KW51" && t.t > t1 && t.status !== "running"), 90000);
         await api.replay("KW51", { playing: false }).catch(() => undefined);
         working(undefined);
-        await wait(9000);
+        stage("twin+side", ["side"]);
+        await wait(6000);
 
         // 3 · AI inspector
         const t3 = Date.now();
+        stage("center", ["center"]);
         s().selectAsset("B07");
         s().requestInspection(PHOTO);
         await line(3, "s3a", 3000, { models: "Muse Spark · SAM 3.1", working: "Muse Spark is reading the photo… SAM 3.1 is masking each defect…" });
         await waitFor(() => s().inspection.at > t3 && s().inspection.status !== "running", 100000);
-        await line(3, "s3b", 9000, { models: "Muse Spark · SAM 3.1" });
+        await line(3, "s3b", 6000, { models: "Muse Spark · SAM 3.1" });
 
         // 4 · Wonder: seeing around obstacles
+        stage("twin+side", ["center", "side"]);
         const f = await api.demoFinding();
         s().selectComponent("B07.P4");
         s().setCenterTab("twin");
@@ -127,7 +144,7 @@ export function Autopilot() {
         await line(4, "s4a", 3000, { models: "Muse Wonder", working: "Muse Wonder is testing camera angles with the twin's geometry engine…" });
         await waitFor(() => s().missions.some((x) => x.id === m.id && x.status !== "running"), 120000);
         s().selectMission(m.id);
-        await line(4, "s4b", 9000, { models: "Muse Wonder" });
+        await line(4, "s4b", 6000, { models: "Muse Wonder" });
 
         // 5 · time-travel
         const renders = Promise.all((["6mo", "2y", "repair"] as const).map((sc) => api.createForecast(f.id, sc)));
@@ -136,15 +153,17 @@ export function Autopilot() {
         working(undefined);
         s().setTtStop(0);
         s().setTimeTravel(f.id);
+        stage("center", ["timetravel"]);
         await wait(2500);
         for (const [i, id] of (["s5b", "s5c", "s5d"] as const).entries()) {
           s().setTtStop(i + 1);
-          await line(5, id, 4000, { models: "Muse Spark · Muse Image" });
+          await line(5, id, 3500, { models: "Muse Spark · Muse Image" });
         }
         await wait(1500);
         s().setTimeTravel(null);
 
         // 6 · voice
+        stage("twin+side", ["center"]);
         s().selectComponent("B07.P4");
         await line(6, "s6a", 1000, { models: "Muse Voice Transcribe · Muse Spark" });
         const blob = await fetch("/demo/voice-command.wav").then((r) => r.blob());
@@ -152,16 +171,18 @@ export function Autopilot() {
         play("/demo/narration/command.mp3");
         const [result] = await Promise.all([runVoiceCommand(blob), waitFor(() => !speaking(), 15000)]);
         void result;
-        await line(6, "s6b", 8000, { models: "Muse Voice Transcribe · Muse Spark" });
+        stage("twin+side", ["voice"]);
+        await line(6, "s6b", 5000, { models: "Muse Voice Transcribe · Muse Spark" });
         s().setVoiceResult(null);
 
         // 7 · close
+        stage(null);
         setCap(null);
         setClosing(true);
         play("/demo/narration/s7.mp3");
-        await wait(6000);
-        await waitFor(() => !speaking(), 20000);
         await wait(4000);
+        await waitFor(() => !speaking(), 20000);
+        await wait(2500);
       } catch (e) {
         if (!(e instanceof Stop)) {
           setCap((p) => ({ scene: p?.scene ?? 0, title: "Demo stopped", text: e instanceof Error ? e.message : String(e) }));
@@ -170,8 +191,10 @@ export function Autopilot() {
       } finally {
         audio.current?.pause();
         api.replay("KW51", { playing: false }).catch(() => undefined);
+        s().setStage({ focus: null, spot: [] });
         setCap(null);
         setClosing(false);
+        setOpening(false);
         setRunning(false);
       }
     })();
@@ -207,6 +230,33 @@ export function Autopilot() {
 
   if (!running) return null;
 
+  if (opening) {
+    return (
+      <div className="fixed inset-0 z-50 grid place-items-center bg-bg p-8">
+        <div className="max-w-3xl text-center">
+          <div className="text-[11px] uppercase tracking-[0.3em] text-accent">Structural health digital twin</div>
+          <div className="mt-3 text-5xl font-semibold text-ink">InfraTwin-Live</div>
+          <p className="mx-auto mt-6 text-xl leading-relaxed text-ink-2">
+            Bridges and tunnels are still inspected <span className="text-ink">by hand</span>, every few years, from photos nobody measures.
+          </p>
+          <div className="mt-8 grid grid-cols-3 gap-3 text-left">
+            {[
+              ["Monitor", "live sensors, real bridge data"],
+              ["Inspect", "AI reads every photo"],
+              ["Act", "drone plans, forecasts, voice"],
+            ].map(([t, d]) => (
+              <div key={t} className="rounded-lg border border-line bg-panel p-3">
+                <div className="font-semibold text-accent">{t}</div>
+                <div className="text-sm text-ink-2">{d}</div>
+              </div>
+            ))}
+          </div>
+          <div className="mt-6 text-xs text-ink-3">Built on Meta: SAM 3.1 · Muse Spark · Muse Wonder · Muse Image · Muse Voice Transcribe</div>
+        </div>
+      </div>
+    );
+  }
+
   if (closing) {
     return (
       <div className="fixed inset-0 z-50 grid place-items-center bg-bg/90 p-6 backdrop-blur-sm">
@@ -215,7 +265,7 @@ export function Autopilot() {
           <div className="mt-2 text-4xl font-semibold text-ink">InfraTwin-Live</div>
           <div className="mt-3 text-lg text-ink-2">Monitor · Inspect · Act</div>
           <p className="mx-auto mt-4 max-w-xl text-sm text-ink-2">{N.s7.text.replace(/^Monitor, inspect, act\. /, "")}</p>
-          <div className="mt-5 text-xs text-ink-3">SAM 3.1 · Muse Spark · Muse Wonder · Muse Image · Muse Voice Transcribe · Muse Glimmer</div>
+          <div className="mt-5 text-xs text-ink-3">SAM 3.1 · Muse Spark · Muse Wonder · Muse Image · Muse Voice Transcribe{glimmer ? " · Muse Glimmer" : ""}</div>
           <button className="mt-6 rounded-md border border-line px-4 py-1.5 text-xs text-ink-2 hover:text-ink" onClick={() => (ctl.current.stop = true)}>
             Close
           </button>
@@ -225,8 +275,8 @@ export function Autopilot() {
   }
 
   return (
-    <div className="pointer-events-none fixed bottom-4 left-4 z-50 w-[min(36rem,calc(100vw-2rem))] lg:w-[calc(37.5vw-2.5rem)]">
-      <div className="pointer-events-auto w-full rounded-xl border border-accent/40 bg-bg/95 px-5 py-4 shadow-2xl backdrop-blur">
+    <div className="pointer-events-none fixed inset-x-0 bottom-0 z-50 h-[124px] border-t border-accent/40 bg-bg">
+      <div className="pointer-events-auto mx-auto flex h-full max-w-6xl flex-col justify-center px-6 py-3">
         <div className="flex items-center gap-3">
           <div className="flex gap-1" aria-label={`Scene ${cap?.scene ?? 0} of ${SCENES}`}>
             {Array.from({ length: SCENES }, (_, i) => (
@@ -253,8 +303,10 @@ export function Autopilot() {
             </button>
           </span>
         </div>
-        <div className="mt-2 text-lg font-semibold text-ink">{cap?.title ?? "Starting…"}</div>
-        <p className="mt-1 text-sm leading-relaxed text-ink-2">{cap?.text}</p>
+        <div className="mt-1.5 flex items-baseline gap-3">
+          <div className="shrink-0 text-xl font-semibold text-ink">{cap?.title ?? "Starting…"}</div>
+          <p className="text-[15px] leading-snug text-ink-2">{cap?.text}</p>
+        </div>
         {cap?.working && (
           <p className="mt-2 flex items-center gap-2 text-xs text-accent">
             <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-accent" />

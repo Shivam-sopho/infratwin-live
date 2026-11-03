@@ -86,7 +86,10 @@ export function CorridorMap() {
       fitBoundsOptions: { padding: 80 },
       pitch: 50,
       maxPitch: 80,
+      attributionControl: { compact: true },
     });
+    // compact attribution opens expanded; fold it to its (i) button so it doesn't cover the map
+    m.once("load", () => container.current?.querySelector(".maplibregl-compact-show")?.classList.remove("maplibregl-compact-show"));
     m.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), "top-right");
     // Re-applied on every style change (Map <-> Satellite): terrain, 3D buildings, drone flight paths.
     m.on("style.load", () => {
@@ -123,6 +126,9 @@ export function CorridorMap() {
       pathsReady.current = true;
     });
     map.current = m;
+    // The presentation layout animates column widths: keep the canvas in step with its container.
+    const ro = new ResizeObserver(() => m.resize());
+    ro.observe(container.current);
 
     for (const a of assets) {
       const el = document.createElement("button");
@@ -138,6 +144,7 @@ export function CorridorMap() {
     }
 
     return () => {
+      ro.disconnect();
       pathsReady.current = false;
       m.remove();
       map.current = null;

@@ -24,10 +24,11 @@ only = set(sys.argv[1:])
 for key, line in LINES.items():
     if only and key not in only:
         continue
-    text = f"{line['title']}. {line['text']}" if line.get("title") and key != "s7" else line["text"]
+    text = f"{line['title']}. {line['text']}" if line.get("title") and key not in ("s0", "s7") else line["text"]
     if key == "s7":
         text = f"Infra Twin Live. {line['text']}"
-    samples, rate = kokoro.create(text, voice=line.get("voice", NARRATOR), speed=1.0 if key == "command" else 1.05, lang="en-us")
+    text = text.replace("InfraTwin-Live", "Infra Twin Live")  # say the product name naturally
+    samples, rate = kokoro.create(text, voice=line.get("voice", NARRATOR), speed=1.0 if key == "command" else 1.1, lang="en-us")
     wav = OUT / f"{key}.wav"
     sf.write(wav, samples, rate)
     subprocess.run(["ffmpeg", "-loglevel", "error", "-y", "-i", str(wav), "-b:a", "96k", str(OUT / f"{key}.mp3")], check=True)

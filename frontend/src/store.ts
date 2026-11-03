@@ -4,6 +4,13 @@ import type { Alert, Asset, Component, Finding, Lift, Mission, Note, ReplayState
 const HISTORY_LEN = 240;
 const EMPTY_STATUS: StatusSnapshot = { sensors: {}, components: {}, assets: {} };
 
+/** Presentation stage for the self-running demo: which panels get the space, which get the spotlight. */
+export type Focus = "map" | "center" | "twin+side";
+export interface Stage {
+  focus: Focus | null;
+  spot: string[]; // data-spot names to highlight
+}
+
 export interface Capabilities {
   meta: boolean;
   glimmer: boolean;
@@ -35,6 +42,8 @@ interface TwinState {
   inspectRequest: { sample: string; nonce: number } | null;
   tourOpen: boolean;
   setTourOpen: (v: boolean) => void;
+  stage: Stage;
+  setStage: (s: Stage) => void;
   inspection: { status: "idle" | "running" | "done" | "error"; at: number };
   setInspection: (status: "idle" | "running" | "done" | "error") => void;
   ttStop: number;
@@ -84,7 +93,9 @@ export const useTwin = create<TwinState>((set, get) => ({
   setCaps: (caps) => set({ caps, capsKnown: true }),
   inspectRequest: null,
   tourOpen: false,
-  setTourOpen: (tourOpen) => set({ tourOpen }),
+  setTourOpen: (tourOpen) => set(tourOpen ? { tourOpen } : { tourOpen, stage: { focus: null, spot: [] } }),
+  stage: { focus: null, spot: [] },
+  setStage: (stage) => set({ stage }),
   inspection: { status: "idle", at: 0 },
   setInspection: (status) => set({ inspection: { status, at: Date.now() } }),
   ttStop: 0,
