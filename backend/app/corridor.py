@@ -4,7 +4,13 @@ Component geometry here is a placeholder BIM: simple primitives that the Scan-to
 (Union-Find) stage will later replace with segmented meshes.
 """
 
-from .models import Asset, Component, Geometry, Occluder, Sensor
+import json
+from pathlib import Path
+
+from .models import Asset, Component, Geometry, Occluder, Sensor, Site
+
+# Real structures (OpenStreetMap, ODbL) each twin is placed on: centre, axis bearing, length and outline.
+_ANCHORS = json.loads((Path(__file__).parent / "data_static" / "anchors.json").read_text())["anchors"]
 
 # kind -> (label, unit, baseline, watch threshold, critical threshold). Higher = worse.
 NO_ALARM = 1e9  # thresholds for informational sensors that never alarm
@@ -69,9 +75,16 @@ class _Builder:
         )
 
 
+def _site(asset_id: str) -> Site:
+    a = _ANCHORS[asset_id]
+    return Site(name=a["name"], place=a["place"], osm_way=a["osm_way"], length_m=a["length_m"],
+                line=[tuple(p) for p in a["line"]])
+
+
 def _bridge() -> Asset:
     b = _Builder("B07")
-    span, n_spans = 30.0, 7
+    a = _ANCHORS["B07"]
+    span, n_spans = round(a["length_m"] / 7, 1), 7  # 7 spans over the real crossing's length
     half = span * n_spans / 2
     pier_h, girder_h = 14.0, 2.2
 
@@ -125,12 +138,13 @@ def _bridge() -> Asset:
         id="B07",
         name="Riverside Viaduct B-07",
         type="bridge",
-        # Placed on a real river crossing in Pune (OSM: Babasaheb Ambedkar / Bund Garden bridge), aligned to its
-        # axis, so the map reads true. The asset itself and its sensor data are simulated and labelled as such.
-        lng=73.88331,
-        lat=18.54471,
-        heading_deg=347.6,
-        description="7-span prestressed concrete box-girder viaduct, 210 m, 4-lane highway.",
+        # Centred on a real river crossing (OSM) and aligned to its axis, so the map shows the actual structure.
+        # The twin's members and its sensor data are simulated and labelled as such.
+        lng=a["center"][0],
+        lat=a["center"][1],
+        heading_deg=a["bearing_deg"],
+        description=f"7-span prestressed concrete box-girder viaduct, {a['length_m']} m, 4-lane highway.",
+        site=_site("B07"),
         components=b.components,
         sensors=b.sensors,
         occluders=occluders,
@@ -164,9 +178,11 @@ def _tunnel() -> Asset:
         id="T02",
         name="Ghat Section Tunnel T-02",
         type="tunnel",
-        lng=73.3700,
-        lat=18.7530,
-        heading_deg=-35,
+        # Portal at the start of the real bore; the twin's rings run along +z, 90° right of the heading.
+        lng=_ANCHORS["T02"]["line"][0][0],
+        lat=_ANCHORS["T02"]["line"][0][1],
+        heading_deg=round((_ANCHORS["T02"]["bearing_deg"] - 90) % 360, 1),
+        site=_site("T02"),
         description="Twin-lane NATM road tunnel portal with shotcrete + cast in-situ lining.",
         components=t.components,
         sensors=t.sensors,
@@ -175,7 +191,9 @@ def _tunnel() -> Asset:
 
 def _dam() -> Asset:
     d = _Builder("D01")
-    block_w, n_blocks, height, base = 20.0, 8, 40.0, 30.0
+    a = _ANCHORS["D01"]
+    n_blocks, height, base = 16, 32.0, 30.0
+    block_w = round(a["length_m"] / n_blocks, 1)  # monoliths span the real crest
     half = block_w * n_blocks / 2
 
     for i in range(n_blocks):
@@ -193,10 +211,11 @@ def _dam() -> Asset:
         id="D01",
         name="Reservoir Gravity Dam D-01",
         type="dam",
-        lng=73.7700,
-        lat=18.4440,
-        heading_deg=80,
-        description="Concrete gravity dam, 8 monoliths, 160 m crest, 40 m max height.",
+        lng=a["center"][0],
+        lat=a["center"][1],
+        heading_deg=a["bearing_deg"],
+        description=f"Masonry gravity dam, {n_blocks} monoliths, {a['length_m'] / 1000:.2f} km crest, {height:.0f} m max height.",
+        site=_site("D01"),
         components=d.components,
         sensors=d.sensors,
     )
@@ -219,9 +238,10 @@ def _kw51() -> Asset:
         id="KW51",
         name="Railway Bridge KW51 (real data)",
         type="bridge",
-        lng=4.6905,
-        lat=50.8875,
-        heading_deg=-30,
+        lng=_ANCHORS["KW51"]["center"][0],
+        lat=_ANCHORS["KW51"]["center"][1],
+        heading_deg=_ANCHORS["KW51"]["bearing_deg"],
+        site=_site("KW51"),
         description="Steel bowstring railway bridge near Leuven, Belgium. Diagonal-to-arch/deck connections were "
         "strengthened May-Sep 2019. Modal frequencies are global; they are grouped onto members here for display.",
         components=k.components,
@@ -229,8 +249,7 @@ def _kw51() -> Asset:
         uav_home=(20.0, 2.0, 35.0),
         region="Leuven (real data)",
         data_source="replay",
-        data_note="Real monitoring data, replayed: KW51, Oct 2018 - Jan 2020 (Maes & Lombaert, Zenodo 3745914, CC BY-NC-SA 4.0). "
-        "Location approximate.",
+        data_note="Real monitoring data, replayed: KW51, Oct 2018 - Jan 2020 (Maes & Lombaert, Zenodo 3745914, CC BY-NC-SA 4.0).",
     )
 
 

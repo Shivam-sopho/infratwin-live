@@ -10,6 +10,7 @@ import type { Status } from "../types";
 import { PATH_COLOR } from "./twin/MissionOverlay";
 
 type PathCollection = { type: "FeatureCollection"; features: { type: "Feature"; properties: { id: string }; geometry: { type: "LineString"; coordinates: [number, number][] } }[] };
+const SITE_COLOR = "#fbbf24";
 
 // MapLibre resolves its worker relative to its own module, which breaks once Vite bundles it.
 maplibregl.setWorkerUrl(workerUrl);
@@ -25,25 +26,33 @@ const DEM = {
   encoding: "terrarium" as const,
   attribution: "Terrain: Mapzen / AWS Open Data",
 };
-// Satellite: Esri World Imagery with the same terrain.
+const ESRI = "https://server.arcgisonline.com/ArcGIS/rest/services";
+// Satellite: Esri World Imagery with roads and place names on top (a hybrid view). Flat on purpose: it's the
+// close-up of a structure, where coarse terrain (DEM max zoom 14) would warp the deck and the river around it.
 const SATELLITE_STYLE: StyleSpecification = {
   version: 8,
   sources: {
     satellite: {
       type: "raster",
-      tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"],
+      tiles: [`${ESRI}/World_Imagery/MapServer/tile/{z}/{y}/{x}`],
       tileSize: 256,
       maxzoom: 19,
       attribution: "Imagery © Esri, Maxar, Earthstar Geographics",
     },
-    dem: DEM,
+    roads: { type: "raster", tiles: [`${ESRI}/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}`], tileSize: 256, maxzoom: 19 },
+    places: {
+      type: "raster",
+      tiles: [`${ESRI}/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}`],
+      tileSize: 256,
+      maxzoom: 19,
+      attribution: "Labels © Esri",
+    },
   },
   layers: [
     { id: "satellite", type: "raster", source: "satellite" },
-    { id: "hillshade", type: "hillshade", source: "dem", paint: { "hillshade-exaggeration": 0.25 } },
+    { id: "roads", type: "raster", source: "roads", paint: { "raster-opacity": 0.55 } },
+    { id: "places", type: "raster", source: "places" },
   ],
-  terrain: { source: "dem", exaggeration: 1.4 },
-  sky: {},
 };
 
 function paintMarker(el: HTMLElement, status: Status, selected: boolean, findings: number) {
@@ -65,6 +74,7 @@ export function CorridorMap() {
   const pathsReady = useRef(false);
   const lastRegion = useRef<string | null>(null);
   const [basemap, setBasemap] = useState<"map" | "satellite">("map");
+  const autoSatellite = useRef(false); // switched to satellite by selecting an asset (undone on deselect)
 
   const assets = useTwin((s) => s.assets);
   const assetStatus = useTwin((s) => s.status.assets);
@@ -93,8 +103,10 @@ export function CorridorMap() {
     m.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), "top-right");
     // Re-applied on every style change (Map <-> Satellite): terrain, 3D buildings, drone flight paths.
     m.on("style.load", () => {
-      if (!m.getSource("dem")) m.addSource("dem", DEM);
-      m.setTerrain({ source: "dem", exaggeration: 1.3 });
+      if (m.getSource("openmaptiles")) {
+        if (!m.getSource("dem")) m.addSource("dem", DEM);
+        m.setTerrain({ source: "dem", exaggeration: 1.3 });
+      }
       if (m.getSource("openmaptiles") && !m.getLayer("buildings-3d")) {
         m.addLayer({
           id: "buildings-3d",
@@ -124,8 +136,27 @@ export function CorridorMap() {
         paint: { "line-color": PATH_COLOR, "line-width": 2.5 },
       });
       pathsReady.current = true;
+      // The real structures (OpenStreetMap) each twin is placed on, outlined on the imagery.
+      m.addSource("sites", {
+        type: "geojson",
+        data: {
+          type: "FeatureCollection",
+          features: assets.flatMap((a) =>
+            a.site ? [{ type: "Feature" as const, properties: { id: a.id, tunnel: a.type === "tunnel" }, geometry: { type: "LineString" as const, coordinates: a.site.line } }] : [],
+          ),
+        },
+      });
+      m.addLayer({ id: "sites-glow", type: "line", source: "sites", minzoom: 12, paint: { "line-color": SITE_COLOR, "line-width": 16, "line-opacity": 0.3, "line-blur": 6 } });
+      m.addLayer({
+        id: "sites",
+        type: "line",
+        source: "sites",
+        minzoom: 12,
+        paint: { "line-color": SITE_COLOR, "line-width": 3, "line-dasharray": ["case", ["get", "tunnel"], ["literal", [2, 1.5]], ["literal", [1, 0]]] },
+      });
     });
     map.current = m;
+    if (import.meta.env.DEV) (window as unknown as { __map: maplibregl.Map }).__map = m;
     // The presentation layout animates column widths: keep the canvas in step with its container.
     const ro = new ResizeObserver(() => m.resize());
     ro.observe(container.current);
@@ -196,6 +227,10 @@ export function CorridorMap() {
   useEffect(() => {
     if (!map.current) return;
     if (selectedAssetId === null && assets.length) {
+      if (autoSatellite.current) {
+        autoSatellite.current = false;
+        setBasemap("map");
+      }
       // Back to the overview of the region last looked at (regions can be continents apart).
       const region = lastRegion.current ?? assets[0].region;
       const b = new maplibregl.LngLatBounds();
@@ -206,6 +241,18 @@ export function CorridorMap() {
     const asset = assets.find((a) => a.id === selectedAssetId);
     if (!asset) return;
     lastRegion.current = asset.region;
+    if (asset.site) {
+      // Fly onto the real structure, on satellite imagery, with it running across the screen.
+      if (appliedBasemap.current === "map") {
+        autoSatellite.current = true;
+        setBasemap("satellite");
+      }
+      const b = new maplibregl.LngLatBounds();
+      asset.site.line.forEach((p) => b.extend(p));
+      const bearing = ((asset.type === "tunnel" ? asset.heading_deg : asset.heading_deg - 90) + 360) % 360;
+      map.current.fitBounds(b, { padding: 70, maxZoom: 17.5, pitch: 55, bearing, duration: 2400, essential: true });
+      return;
+    }
     map.current.flyTo({
       center: [asset.lng, asset.lat],
       zoom: 15.5,
@@ -227,9 +274,26 @@ export function CorridorMap() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only re-fit when the selection changes
   }, [selectedMissionId]);
 
+  const site = assets.find((a) => a.id === selectedAssetId)?.site;
+
   return (
     <div className="relative h-full w-full">
       <div ref={container} className="h-full w-full" />
+      {site && (
+        <div className="absolute bottom-3 left-3 max-w-[calc(100%-1.5rem)] rounded-md border border-line bg-panel/90 px-3 py-2 text-xs backdrop-blur">
+          <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-ink-3">
+            <span className="inline-block h-0.5 w-4" style={{ background: SITE_COLOR }} />
+            Real structure
+          </div>
+          <div className="mt-0.5 font-medium text-ink">{site.name}</div>
+          <div className="text-ink-2">
+            {site.place} · {site.length_m.toLocaleString()} m ·{" "}
+            <a className="text-accent hover:underline" href={`https://www.openstreetmap.org/way/${site.osm_way}`} target="_blank" rel="noreferrer">
+              OpenStreetMap
+            </a>
+          </div>
+        </div>
+      )}
       <div className="absolute left-3 top-3 flex overflow-hidden rounded-md border border-line bg-panel/90 text-xs backdrop-blur" role="radiogroup" aria-label="Basemap">
         {(["map", "satellite"] as const).map((b) => (
           <button

@@ -49,6 +49,16 @@ class Occluder(BaseModel):
     geometry: Geometry
 
 
+class Site(BaseModel):
+    """A real structure from OpenStreetMap: what the map outlines and flies to."""
+
+    name: str
+    place: str
+    osm_way: int
+    length_m: float
+    line: list[tuple[float, float]]  # [lng, lat]
+
+
 class Asset(BaseModel):
     id: str
     name: str
@@ -64,6 +74,8 @@ class Asset(BaseModel):
     region: str = "Pune corridor"
     data_source: Literal["simulated", "replay", "live"] = "simulated"
     data_note: str = "Simulated sensor data"
+    site: Site | None = None  # the real structure this twin is placed on
+
 
 
 class Alert(BaseModel):

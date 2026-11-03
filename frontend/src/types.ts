@@ -48,6 +48,16 @@ export interface Asset {
   region: string;
   data_source: "simulated" | "replay" | "live";
   data_note: string;
+  site: Site | null;
+}
+
+/** The real structure (OpenStreetMap) a twin is placed on. */
+export interface Site {
+  name: string;
+  place: string;
+  osm_way: number;
+  length_m: number;
+  line: [number, number][];
 }
 
 export interface ReplayState {

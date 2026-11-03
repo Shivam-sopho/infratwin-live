@@ -54,6 +54,11 @@ body {
 .pin-selected .pin-dot {
   box-shadow: 0 0 0 3px var(--color-accent);
 }
+/* zoomed onto the real structure: lift the label off it */
+.pin-selected .pin-label {
+  transform: translate(-20px, -34px);
+  transition: transform 400ms ease;
+}
 .pin-critical {
   animation: pin-pulse 1s ease-in-out infinite;
 }
