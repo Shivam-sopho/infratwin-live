@@ -4,6 +4,7 @@ Feature modules (SAM 3.1 segmentation, Muse Image, Voice Transcribe, Wonder plan
 build on this rather than talking HTTP directly.
 """
 
+import asyncio
 import base64
 import json
 from collections.abc import AsyncIterator
@@ -19,6 +20,10 @@ MUSE_VOICE = "muse-voice-transcribe-1.0"
 SAM_31 = "sam-3.1"
 
 
+RETRY_STATUS = {429, 500, 502, 503, 504}
+RETRY_DELAYS_S = (1.0, 3.0)  # up to 3 attempts in total
+
+
 class MetaAPIError(RuntimeError):
     pass
 
@@ -32,11 +37,25 @@ class MetaClient:
             timeout=httpx.Timeout(120.0, connect=10.0),
         )
 
+    async def _post(self, path: str, **kw) -> httpx.Response:
+        """POST with retries on transient overload / server errors (429, 5xx) and connection drops."""
+        for attempt, delay in enumerate((*RETRY_DELAYS_S, None)):
+            try:
+                r = await self._http.post(path, **kw)
+            except httpx.TransportError:
+                if delay is None:
+                    raise
+            else:
+                if r.status_code not in RETRY_STATUS or delay is None:
+                    return r
+            await asyncio.sleep(delay)
+        raise AssertionError("unreachable")
+
     async def respond(self, model: str, input: str | list, **extra) -> dict:
         """POST /responses (non-streaming)."""
         if not self.configured:
             raise MetaAPIError("MODEL_API_KEY is not set")
-        r = await self._http.post("/responses", json={"model": model, "input": input, **extra})
+        r = await self._post("/responses", json={"model": model, "input": input, **extra})
         if r.status_code >= 400:
             raise MetaAPIError(f"{r.status_code}: {r.text[:500]}")
         return r.json()
@@ -45,25 +64,30 @@ class MetaClient:
         """POST with `stream: true` and yield each server-sent event's JSON payload."""
         if not self.configured:
             raise MetaAPIError("MODEL_API_KEY is not set")
-        async with self._http.stream(
-            "POST", path, json={**body, "stream": True}, headers={"Accept": "text/event-stream"}
-        ) as r:
-            if r.status_code >= 400:
-                raise MetaAPIError(f"{r.status_code}: {(await r.aread()).decode(errors='replace')[:500]}")
-            async for line in r.aiter_lines():
-                if line.startswith("data:"):
-                    data = line[5:].strip()
-                    if data and data != "[DONE]":
-                        yield json.loads(data)
+        for delay in (*RETRY_DELAYS_S, None):
+            async with self._http.stream(
+                "POST", path, json={**body, "stream": True}, headers={"Accept": "text/event-stream"}
+            ) as r:
+                if r.status_code in RETRY_STATUS and delay is not None:
+                    await r.aread()
+                    await asyncio.sleep(delay)
+                    continue  # retry only before any event has been yielded
+                if r.status_code >= 400:
+                    raise MetaAPIError(f"{r.status_code}: {(await r.aread()).decode(errors='replace')[:500]}")
+                async for line in r.aiter_lines():
+                    if line.startswith("data:"):
+                        data = line[5:].strip()
+                        if data and data != "[DONE]":
+                            yield json.loads(data)
+                return
 
     async def upload_file(self, path: str, filename: str, content_type: str, purpose: str = "user_data") -> str:
         """POST /files; returns the file id."""
         if not self.configured:
             raise MetaAPIError("MODEL_API_KEY is not set")
         with open(path, "rb") as f:
-            r = await self._http.post(
-                "/files", files={"file": (filename, f, content_type)}, data={"purpose": purpose}, timeout=300
-            )
+            content = f.read()
+        r = await self._post("/files", files={"file": (filename, content, content_type)}, data={"purpose": purpose}, timeout=300)
         if r.status_code >= 400:
             raise MetaAPIError(f"{r.status_code}: {r.text[:500]}")
         return r.json()["id"]
@@ -72,7 +96,7 @@ class MetaClient:
         """POST /asr/transcribe (multipart: `request` JSON + `audio` WAV); returns TranscribeResponse."""
         if not self.configured:
             raise MetaAPIError("MODEL_API_KEY is not set")
-        r = await self._http.post(
+        r = await self._post(
             "/asr/transcribe",
             files={
                 "request": (None, json.dumps(settings), "application/json"),
@@ -88,7 +112,7 @@ class MetaClient:
         """POST /images/edits with one input image (data URL); returns the edited image bytes."""
         if not self.configured:
             raise MetaAPIError("MODEL_API_KEY is not set")
-        r = await self._http.post(
+        r = await self._post(
             "/images/edits",
             json={
                 "model": MUSE_IMAGE,

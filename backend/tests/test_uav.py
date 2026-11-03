@@ -59,11 +59,11 @@ def _planner(sent):
 
 
 def test_wonder_tool_loop(monkeypatch):
-    sent, bodies = [], []
+    sent, bodies, chosen = [], [], []
     rounds = iter(["score", "flight", "final"])
 
     async def fake_stream(path, body):
-        bodies.append(body)
+        bodies.append(json.loads(json.dumps(body)))  # snapshot: the loop keeps appending to the same history
         step = next(rounds)
         yield {"type": "response.created", "response": {"id": f"resp_{len(bodies)}"}}
         yield {"type": "response.reasoning_summary_text.delta", "delta": f"[{step}] "}
@@ -71,9 +71,11 @@ def test_wonder_tool_loop(monkeypatch):
             for i, so in enumerate((4, 8)):
                 yield {"type": "response.output_item.done", "item": {"type": "function_call", "call_id": f"c{i}", "name": "score_viewpoints", "arguments": json.dumps({"standoff_m": so, "max_yaw_deg": 60, "max_pitch_deg": 40})}}
         elif step == "flight":
-            yield {"type": "response.output_item.done", "item": {"type": "function_call", "call_id": "c9", "name": "plan_flight", "arguments": json.dumps({"viewpoint_ids": ["s8_y-30_p+0"]})}}
+            scored = [json.loads(i["output"]) for i in body["input"] if i["type"] == "function_call_output"]
+            chosen.append(scored[-1]["candidates"][0]["id"])  # pick the best pose the tool returned
+            yield {"type": "response.output_item.done", "item": {"type": "function_call", "call_id": "c9", "name": "plan_flight", "arguments": json.dumps({"viewpoint_ids": chosen})}}
         else:
-            plan = {"summary": "Fly left of the downpipe.", "chosen_viewpoint_ids": ["s8_y-30_p+0"], "standoff_m": 8, "expected_coverage": 0.9,
+            plan = {"summary": "Fly left of the downpipe.", "chosen_viewpoint_ids": chosen, "standoff_m": 8, "expected_coverage": 0.9,
                     "gimbal_notes": "Yaw -30°.", "safety_notes": ["Keep 1 m from scaffold"], "rationale": ["Baseline blocked by pipe"]}
             yield {"type": "response.output_text.delta", "delta": json.dumps(plan)}
         yield {"type": "response.completed", "response": {"id": f"resp_{len(bodies)}"}}
@@ -90,10 +92,13 @@ def test_wonder_tool_loop(monkeypatch):
     m = asyncio.run(go())
     assert m.status == "done", m.error
     assert [t.name for t in m.tool_calls] == ["score_viewpoints", "score_viewpoints", "plan_flight"]
-    assert bodies[1]["previous_response_id"] == "resp_1"
-    assert [o["call_id"] for o in bodies[1]["input"]] == ["c0", "c1"]
+    # Stateless loop: each turn resends input + function calls + outputs, call ids paired in order.
+    turn2 = bodies[1]["input"]
+    assert turn2[0]["type"] == "message" and "previous_response_id" not in bodies[1]
+    assert [(i["type"], i["call_id"]) for i in turn2[1:]] == [("function_call", "c0"), ("function_call_output", "c0"), ("function_call", "c1"), ("function_call_output", "c1")]
+    assert len(bodies[2]["input"]) == 7 and bodies[2]["store"] is False
     assert bodies[0]["tools"][0]["name"] == "score_viewpoints" and "instructions" in bodies[2]
-    assert [v.id for v in m.chosen] == ["s8_y-30_p+0"] and m.path and m.path.length_m > 0
+    assert [v.id for v in m.chosen] == chosen and m.chosen[0].coverage >= 0.85 and m.path and m.path.length_m > 0
     assert m.reasoning == "[score] [flight] [final] "
     assert m.baseline.coverage <= 0.4
 

@@ -107,7 +107,7 @@ class Replay:
     def __init__(self, data: KW51Data, hours_per_s: float = 24.0):
         self.data = data
         self.hours_per_s = hours_per_s
-        self.playing = True
+        self.playing = False  # starts paused: replayed alerts trigger paid model calls, so play is explicit
         self.pos = 0.0  # fractional row index
 
     def advance(self, dt_s: float) -> None:

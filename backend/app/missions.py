@@ -268,15 +268,16 @@ class MissionPlanner:
             "tools": TOOLS,
             "reasoning": {"effort": "medium", "summary": "concise"},
             "text": {"format": {"type": "json_schema", "name": "uav_mission", "schema": schema, "strict": True}},
+            "store": False,
         }
-        body = {**base, "input": json.dumps(self.context(m))}
+        # Stateless tool loop: resend the conversation (input + the model's function calls + our outputs) each
+        # turn. Chaining by previous_response_id fails for streamed responses ("referenced response not found").
+        history: list[dict] = [{"type": "message", "role": "user", "content": [{"type": "input_text", "text": json.dumps(self.context(m))}]}]
         for _ in range(MAX_TOOL_ROUNDS + 1):
-            response_id, calls, text = None, [], []
-            async for ev in meta.stream("/responses", body):
+            calls, text = [], []
+            async for ev in meta.stream("/responses", {**base, "input": history}):
                 kind = ev.get("type")
-                if kind in ("response.created", "response.completed"):
-                    response_id = ev.get("response", {}).get("id") or response_id
-                elif kind == "response.reasoning_summary_text.delta":
+                if kind == "response.reasoning_summary_text.delta":
                     m.reasoning += ev.get("delta", "")
                     await self.broadcast({"type": "mission_delta", "id": m.id, "delta": ev.get("delta", "")})
                 elif kind == "response.output_item.done" and ev.get("item", {}).get("type") == "function_call":
@@ -290,7 +291,6 @@ class MissionPlanner:
                 by_id = {v.id: v for v in m.candidates}
                 m.chosen = [by_id[i] for i in m.plan.chosen_viewpoint_ids if i in by_id] or m.candidates[:1]
                 return
-            outputs = []
             for call in calls:
                 try:
                     args = json.loads(call.get("arguments") or "{}")
@@ -298,9 +298,9 @@ class MissionPlanner:
                     args = {}
                 result, summary = await asyncio.to_thread(self._exec, m, call.get("name", ""), args)
                 m.tool_calls.append(ToolCall(name=call.get("name", ""), args=args, summary=summary))
-                outputs.append({"type": "function_call_output", "call_id": call["call_id"], "output": json.dumps(result)})
+                history.append({"type": "function_call", "call_id": call["call_id"], "name": call.get("name", ""), "arguments": call.get("arguments") or "{}"})
+                history.append({"type": "function_call_output", "call_id": call["call_id"], "output": json.dumps(result)})
             await self._publish(m)
-            body = {**base, "previous_response_id": response_id, "input": outputs}
         raise RuntimeError(f"Wonder did not finish within {MAX_TOOL_ROUNDS} tool rounds")
 
     def snapshot(self) -> list[dict]:

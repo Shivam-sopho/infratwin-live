@@ -45,6 +45,9 @@ def test_replay_clock_seek_and_readings():
     d = _synthetic()
     rp = kw51.Replay(d, hours_per_s=24)
     rp.advance(2.0)
+    assert rp.row == 0  # starts paused
+    rp.playing = True
+    rp.advance(2.0)
     assert rp.row == 48 and rp.phase() == "pre-retrofit"
     rp.seek(kw51.RETROFIT_END)
     rp.advance(24 * 3600 / 24 * 10 / 3600)  # 10 h of data
@@ -60,6 +63,7 @@ def test_replay_clock_seek_and_readings():
 def test_simulator_uses_replay_holds_gaps_and_ingest_overrides():
     d = _synthetic()
     sim = Simulator(build_corridor(include_kw51=True), replays={"KW51": kw51.Replay(d, hours_per_s=3600)})
+    sim.replays["KW51"].playing = True
     sim.replays["KW51"].pos = 99.0
     sim.step()
     first = sim.history[-1][1]["KW51.DECK.mode6_hz"]

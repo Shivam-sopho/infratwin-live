@@ -7,6 +7,7 @@ Component geometry here is a placeholder BIM: simple primitives that the Scan-to
 from .models import Asset, Component, Geometry, Occluder, Sensor
 
 # kind -> (label, unit, baseline, watch threshold, critical threshold). Higher = worse.
+NO_ALARM = 1e9  # thresholds for informational sensors that never alarm
 SENSOR_TEMPLATES: dict[str, tuple[str, str, float, float, float]] = {
     "strain": ("Strain", "µε", 180, 320, 450),
     "accel": ("Vibration RMS", "mg", 12, 25, 40),
@@ -20,17 +21,17 @@ SENSOR_TEMPLATES: dict[str, tuple[str, str, float, float, float]] = {
     "wind": ("Wind speed", "m/s", 6, 18, 25),
     "temperature": ("Air temperature", "°C", 26, 40, 46),
     # KW51 (real data). Raw frequencies are informational; deviations are temperature-compensated residuals.
-    "mode3_hz": ("Mode 3 frequency", "Hz", 1.89, 99, 99),
-    "mode6_hz": ("Mode 6 frequency", "Hz", 2.93, 99, 99),
-    "mode9_hz": ("Mode 9 frequency", "Hz", 4.11, 99, 99),
-    "mode13_hz": ("Mode 13 frequency", "Hz", 6.37, 99, 99),
+    "mode3_hz": ("Mode 3 frequency", "Hz", 1.89, NO_ALARM, NO_ALARM),
+    "mode6_hz": ("Mode 6 frequency", "Hz", 2.93, NO_ALARM, NO_ALARM),
+    "mode9_hz": ("Mode 9 frequency", "Hz", 4.11, NO_ALARM, NO_ALARM),
+    "mode13_hz": ("Mode 13 frequency", "Hz", 6.37, NO_ALARM, NO_ALARM),
     "mode3_dev": ("Mode 3 deviation (temp-compensated)", "σ", 0.7, 3, 5),
     "mode6_dev": ("Mode 6 deviation (temp-compensated)", "σ", 0.7, 3, 5),
     "mode9_dev": ("Mode 9 deviation (temp-compensated)", "σ", 0.7, 3, 5),
     "mode13_dev": ("Mode 13 deviation (temp-compensated)", "σ", 0.7, 3, 5),
-    "steel_temp": ("Steel temperature", "°C", 11, 99, 99),
-    "air_temp": ("Air temperature", "°C", 11, 99, 99),
-    "humidity": ("Relative humidity", "%", 80, 101, 102),
+    "steel_temp": ("Steel temperature", "°C", 11, NO_ALARM, NO_ALARM),
+    "air_temp": ("Air temperature", "°C", 11, NO_ALARM, NO_ALARM),
+    "humidity": ("Relative humidity", "%", 80, NO_ALARM, NO_ALARM),
 }
 
 # Sensors that describe the environment / loading rather than structural response;

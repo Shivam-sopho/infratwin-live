@@ -10,7 +10,7 @@ export function Sparkline({ sensor, values }: { sensor: Sensor; values: number[]
   const [hover, setHover] = useState<number | null>(null);
   if (values.length < 2) return <div className="h-10" />;
 
-  const informational = sensor.watch >= 99; // no alarm thresholds: scale to the data itself
+  const informational = sensor.watch >= 1e8; // no alarm thresholds (NO_ALARM): scale to the data itself
   const lo = informational ? Math.min(...values) : Math.min(sensor.baseline * 0.8, ...values);
   const hi = informational ? Math.max(...values) + 1e-6 : Math.max(sensor.critical * 1.1, ...values);
   const x = (i: number) => PAD + (i / (values.length - 1)) * (W - 2 * PAD);

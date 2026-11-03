@@ -22,7 +22,7 @@ function SensorRow({ sensor }: { sensor: Sensor }) {
       </div>
       <Sparkline sensor={sensor} values={values} />
       <div className="mt-1 text-[11px] text-ink-3">
-        {sensor.watch >= 99 ? "informational · no alarm thresholds" : `watch ≥ ${sensor.watch} · critical ≥ ${sensor.critical}`}
+        {sensor.watch >= 1e8 ? "informational · no alarm thresholds" : `watch ≥ ${sensor.watch} · critical ≥ ${sensor.critical}`}
       </div>
     </div>
   );

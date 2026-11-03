@@ -184,7 +184,7 @@ def score_viewpoints(
             vp = make(float(yaw), float(pitch), f"s{standoff_m:g}_y{yaw:+.0f}_p{pitch:+.0f}")
             if vp is not None:
                 cands.append(vp)
-    cands.sort(key=lambda v: (v.quality, v.coverage), reverse=True)
+    cands.sort(key=lambda v: (v.coverage, v.quality), reverse=True)  # see the defect first, then see it squarely
     return baseline, cands
 
 

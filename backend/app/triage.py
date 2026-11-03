@@ -22,7 +22,7 @@ from .meta_client import MUSE_SPARK, meta
 from .models import Alert
 from .simulator import Simulator
 
-COOLDOWN_S = 120.0  # one triage per component per window (strain + vibration alerts arrive together)
+COOLDOWN_S = 600.0  # one automatic triage per component per window (correlated alerts arrive together)
 TRACE_TICKS = 120  # last ~60 s at 2 Hz
 TRACE_POINTS = 30
 
@@ -106,8 +106,8 @@ class CognitiveTwin:
                     "sensor": s.label,
                     "unit": s.unit,
                     "baseline": s.baseline,
-                    "watch_threshold": s.watch,
-                    "critical_threshold": s.critical,
+                    "watch_threshold": s.watch if s.watch < 1e8 else None,  # None: informational, never alarms
+                    "critical_threshold": s.critical if s.critical < 1e8 else None,
                     "status": sim.sensor_status[sid],
                     "trace_oldest_to_newest": trace(sid),
                     "trace_interval_s": round(step / 2, 1),
