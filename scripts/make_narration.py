@@ -28,7 +28,7 @@ for key, line in LINES.items():
     if key == "s7":
         text = f"Infra Twin Live. {line['text']}"
     text = text.replace("InfraTwin-Live", "Infra Twin Live")  # say the product name naturally
-    samples, rate = kokoro.create(text, voice=line.get("voice", NARRATOR), speed=1.0 if key == "command" else 1.1, lang="en-us")
+    samples, rate = kokoro.create(text, voice=line.get("voice", NARRATOR), speed=1.0 if key == "command" or key.startswith("c") else 1.1, lang="en-us")
     wav = OUT / f"{key}.wav"
     sf.write(wav, samples, rate)
     subprocess.run(["ffmpeg", "-loglevel", "error", "-y", "-i", str(wav), "-b:a", "96k", str(OUT / f"{key}.mp3")], check=True)

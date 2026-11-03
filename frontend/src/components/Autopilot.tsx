@@ -3,9 +3,10 @@ import { api } from "../api";
 import N from "../narration.json";
 import { type Focus, useTwin } from "../store";
 import { runVoiceCommand } from "../voiceCommand";
+import { ColdOpen } from "./ColdOpen";
 
 const PHOTO = "dacl10k_v2_train_3113.jpg"; // real inspection photo: spalling + corroded exposed rebar
-const SCENES = 7;
+const SCENES = 8;
 type LineId = keyof typeof N;
 
 interface Caption {
@@ -28,6 +29,8 @@ export function Autopilot() {
   const [cap, setCap] = useState<Caption | null>(null);
   const [closing, setClosing] = useState(false);
   const [opening, setOpening] = useState(false);
+  const [cold, setCold] = useState(false);
+  const coldDone = useRef(false);
   const glimmer = useTwin((st) => st.caps.glimmer);
   const [paused, setPaused] = useState(false);
   const [narrate, setNarrate] = useState(true);
@@ -39,6 +42,14 @@ export function Autopilot() {
     narrateRef.current = narrate;
     if (!narrate) audio.current?.pause();
   }, [narrate]);
+
+  const play = (src: string) => {
+    audio.current?.pause();
+    if (!narrateRef.current) return;
+    const a = new Audio(src);
+    audio.current = a;
+    a.play().catch(() => undefined);
+  };
 
   useEffect(() => {
     if (!running) return;
@@ -65,13 +76,6 @@ export function Autopilot() {
         await tick();
       }
     };
-    const play = (src: string) => {
-      audio.current?.pause();
-      if (!narrateRef.current) return;
-      const a = new Audio(src);
-      audio.current = a;
-      a.play().catch(() => undefined);
-    };
     const speaking = () => !!audio.current && !audio.current.ended && !audio.current.paused;
     /** Show a narration line (and speak it); resolves after the line is spoken and `minMs` has passed. */
     const line = async (scene: number, id: LineId, minMs: number, extra: Partial<Caption> = {}) => {
@@ -88,15 +92,20 @@ export function Autopilot() {
     (async () => {
       try {
         if (!s().caps.meta) throw new Error("The demo needs a Meta API key: add MODEL_API_KEY to .env (or re-run ./start.sh) and restart.");
-        // 0 · the problem
+        // 0 · cold open: what happens when warnings go unconnected (resets the twin behind it)
         const t1 = Date.now() / 1000;
-        await api.demoReset();
+        coldDone.current = false;
+        setCold(true);
+        s().setView("corridor");
         s().setTimeTravel(null);
         s().setVoiceResult(null);
         s().selectAsset(null);
         s().setCenterTab("twin");
         s().setSideTab("alerts");
         stage("map");
+        await api.demoReset();
+        await waitFor(() => coldDone.current, 40000);
+        setCold(false);
         setOpening(true);
         play("/demo/narration/s0.mp3");
         await wait(5000);
@@ -123,7 +132,7 @@ export function Autopilot() {
         await api.replay("KW51", { playing: false }).catch(() => undefined);
         working(undefined);
         stage("twin+side", ["side"]);
-        await wait(6000);
+        await wait(3500);
 
         // 3 · AI inspector
         const t3 = Date.now();
@@ -132,7 +141,7 @@ export function Autopilot() {
         s().requestInspection(PHOTO);
         await line(3, "s3a", 3000, { models: "Muse Spark · SAM 3.1", working: "Muse Spark is reading the photo… SAM 3.1 is masking each defect…" });
         await waitFor(() => s().inspection.at > t3 && s().inspection.status !== "running", 100000);
-        await line(3, "s3b", 6000, { models: "Muse Spark · SAM 3.1" });
+        await line(3, "s3b", 4500, { models: "Muse Spark · SAM 3.1" });
 
         // 4 · Wonder: seeing around obstacles
         stage("twin+side", ["center", "side"]);
@@ -144,7 +153,7 @@ export function Autopilot() {
         await line(4, "s4a", 3000, { models: "Muse Wonder", working: "Muse Wonder is testing camera angles with the twin's geometry engine…" });
         await waitFor(() => s().missions.some((x) => x.id === m.id && x.status !== "running"), 120000);
         s().selectMission(m.id);
-        await line(4, "s4b", 6000, { models: "Muse Wonder" });
+        await line(4, "s4b", 4500, { models: "Muse Wonder" });
 
         // 5 · time-travel
         const renders = Promise.all((["6mo", "2y", "repair"] as const).map((sc) => api.createForecast(f.id, sc)));
@@ -175,14 +184,31 @@ export function Autopilot() {
         await line(6, "s6b", 5000, { models: "Muse Voice Transcribe · Muse Spark" });
         s().setVoiceResult(null);
 
-        // 7 · close
+        // 7 · every structure: the global view
+        stage(null);
+        const [fleetSites, fleetState] = await Promise.all([api.fleetSites(), api.fleetState()]);
+        s().setView("globe");
+        stage(null, ["globe"]);
+        setCap({ scene: 7, title: N.s8.title, text: N.s8.text, models: "Real locations (Wikidata) · simulated portfolio condition" });
+        play("/demo/narration/s8.mp3");
+        await wait(2500);
+        const crit = fleetState.conditions.find((x) => x.status === "critical");
+        const site = crit && fleetSites.sites.find((x) => x.id === crit.id);
+        if (site) s().flyGlobe(site.lng, site.lat, 4.5);
+        stage(null, ["globe", "dashboard"]);
+        await wait(3500);
+        s().flyGlobe(73.85, 18.6, 3.6); // home: the live Pune corridor
+        await waitFor(() => !speaking(), 15000);
+        await wait(800);
+
+        // 8 · close
         stage(null);
         setCap(null);
         setClosing(true);
         play("/demo/narration/s7.mp3");
         await wait(4000);
         await waitFor(() => !speaking(), 20000);
-        await wait(2500);
+        await wait(1500);
       } catch (e) {
         if (!(e instanceof Stop)) {
           setCap((p) => ({ scene: p?.scene ?? 0, title: "Demo stopped", text: e instanceof Error ? e.message : String(e) }));
@@ -192,7 +218,9 @@ export function Autopilot() {
         audio.current?.pause();
         api.replay("KW51", { playing: false }).catch(() => undefined);
         s().setStage({ focus: null, spot: [] });
+        s().setView("corridor");
         setCap(null);
+        setCold(false);
         setClosing(false);
         setOpening(false);
         setRunning(false);
@@ -230,6 +258,18 @@ export function Autopilot() {
 
   if (!running) return null;
 
+  if (cold) {
+    return (
+      <ColdOpen
+        muted={!narrate}
+        play={play}
+        onDone={() => {
+          coldDone.current = true;
+        }}
+      />
+    );
+  }
+
   if (opening) {
     return (
       <div className="fixed inset-0 z-50 grid place-items-center bg-bg p-8">
@@ -237,7 +277,7 @@ export function Autopilot() {
           <div className="text-[11px] uppercase tracking-[0.3em] text-accent">Structural health digital twin</div>
           <div className="mt-3 text-5xl font-semibold text-ink">InfraTwin-Live</div>
           <p className="mx-auto mt-6 text-xl leading-relaxed text-ink-2">
-            Bridges and tunnels are still inspected <span className="text-ink">by hand</span>, every few years, from photos nobody measures.
+            <span className="text-ink">Connects the warnings:</span> watches every structure live, inspects it with AI, and plans what to do next.
           </p>
           <div className="mt-8 grid grid-cols-3 gap-3 text-left">
             {[

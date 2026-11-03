@@ -1,7 +1,16 @@
 {
+  "c1": {
+    "text": "Pier four. A hairline crack, noted in 2020. The strain kept climbing. The alerts went unanswered."
+  },
+  "c2": {
+    "text": "This bridge is a simulation. Genoa, Morbi and Pittsburgh were not. The warnings were there. Nobody connected them."
+  },
+  "c3": {
+    "text": "Let's rewind."
+  },
   "s0": {
     "title": "InfraTwin-Live",
-    "text": "Bridges and tunnels are still inspected by hand, every few years, from photos nobody measures. InfraTwin-Live watches them live, inspects them with AI, and plans what to do next."
+    "text": "InfraTwin-Live connects the warnings. It watches structures live, inspects them with AI, and plans what to do next."
   },
   "s1": {
     "title": "A live digital twin of the network",
@@ -50,10 +59,14 @@
   },
   "s7": {
     "title": "InfraTwin-Live",
-    "text": "Monitor, inspect, act. From a drifting sensor, to an AI inspection, to a drone flight, in minutes instead of a site visit."
+    "text": "Monitor, inspect, act. From a drifting sensor to a drone flight, in minutes. So the next warning gets connected."
   },
   "command": {
     "text": "Note a shear crack on Pier 4, and plan a drone re-scan around the drainage pipe.",
     "voice": "am_michael"
+  },
+  "s8": {
+    "title": "Every structure, one screen",
+    "text": "Zoom out: every bridge, tunnel and dam on one live globe. What is failing, what is being repaired, and where."
   }
 }

@@ -54,12 +54,15 @@ The app labels every asset's data source on screen.
 | **The 2019 strengthening of KW51 that the twin detects** | **Real event** in the real data |
 | **Inspection sample photos** | **Real** bridge-inspection photos with expert labels ([dacl10k](https://huggingface.co/datasets/Voxel51/dacl10k)) |
 | **Map imagery and terrain** | **Real** (Esri, AWS terrain tiles) |
+| **Where each twin sits** | **Real structures** from OpenStreetMap: Babasaheb Ambedkar Bridge (Pune), Khandala Tunnel, Khadakwasla Dam, and KW51 on line L36N over the Leuven–Dijle canal; centred, aligned and sized to them |
+| **Global view: 638 bridges, tunnels and dams** | **Real locations** ([Wikidata](https://www.wikidata.org), CC0); their health, repairs and events are **simulated** and labelled so |
 | **SAM / Muse outputs** | **Real model output** when API keys are configured; nothing is faked without them |
 | KW51 "deviation (σ)" sensors | **Derived**: real frequency minus the twin's temperature model |
 | Defect measurements | **Derived** from the image and the member's known size |
-| Pune corridor: viaduct B-07, tunnel T-02, dam D-01 | **Simulated** assets and sensor streams (labelled "simulated"). B-07's map position is a real river crossing so the map reads true; nothing shown describes that real bridge |
+| Pune corridor: viaduct B-07, tunnel T-02, dam D-01 | **Simulated** members and sensor streams (labelled "simulated"), placed on real structures so the map reads true; nothing shown describes the condition of those real structures |
+| Cold-open bridge collapse | **Simulated** (procedural 3D, labelled "Simulation"); the three cases it cites are real and sourced below |
 | "Simulate Pier 4 event" | **Simulated** demo trigger |
-| 3D shapes of all structures, KW51 map position, drone obstacles | **Illustrative / approximate** |
+| 3D member shapes of all structures, drone obstacles | **Illustrative / approximate** |
 
 ---
 
@@ -67,8 +70,17 @@ The app labels every asset's data source on screen.
 
 ### Live monitoring
 
-- **3D map**: a labelled OpenStreetMap basemap (OpenFreeMap) with 3D buildings and terrain, or satellite imagery
-  (MapLibre, no API key needed). Each asset has a health pin with defect counts and a "real data" or "simulated" tag, an asset switcher across regions, and drone flight paths drawn on the ground.
+- **3D map on real structures**: a labelled OpenStreetMap basemap (OpenFreeMap) with 3D buildings and terrain
+  (MapLibre, no API key needed). Each twin is anchored on the real structure it represents (OpenStreetMap
+  geometry). Selecting one flies onto it in a satellite hybrid view (Esri imagery with roads and place names),
+  outlines the real structure and shows a *Real structure* card linking to OpenStreetMap. Health pins carry defect
+  counts and a "real data" or "simulated" tag; drone flight paths are drawn on the ground.
+- **Global view**: a *Corridor / Global* switch opens a spinning 3D globe of 638 real bridges, tunnels and dams in
+  100+ countries, coloured by health, with pulsing critical sites, repair rings and the live twins pinned. The
+  operations dashboard beside it shows structures, sensors online, critical / watch / nominal, what needs attention
+  now, repairs in progress with crews and ETA, and a live event feed. Portfolio condition is simulated
+  (deterministic from site and clock); structures that are collapsed, ruined, proposed or in conflict zones are
+  excluded so no real disaster site carries a simulated alert.
 - **Component-aware 3D twin** (Three.js / React Three Fiber): every member is clickable and coloured by health;
   critical members pulse; selecting a member, a defect or a mission flies the camera to it.
 - **Telemetry and health**: readings stream over a WebSocket at 2 Hz. Status rolls up sensor → member → asset,
@@ -163,10 +175,13 @@ The app labels every asset's data source on screen.
 - **Graceful degradation**: each model is optional. Missing keys show "not configured" instead of failing, and
   the top bar shows which models are live.
 - **Self-running demo**: a first-visit welcome explains the product in three pillars, and **▶ Play demo** runs the
-  whole story by itself in about 2½ minutes, as a presentation: the layout re-focuses on each step, a spotlight
+  whole story by itself in under 3 minutes, as a presentation: the layout re-focuses on each step, a spotlight
   marks what the narration is about, and captions (voice by Kokoro, an open-source neural TTS) sit in a lower
-  third that never covers the app. It opens with the problem, then shows the network; KW51 real data with Muse Spark's assessment; the AI Inspector on a real photo; Muse Wonder seeing
-  around the downpipe; Muse Image two years on and repaired; a spoken field command through the voice pipeline.
+  third that never covers the app. It opens cold: a procedural 3D bridge whose Pier 4 crack and strain alerts go
+  unanswered until it fails, then three real collapses (Genoa 2018, Morbi 2022, Pittsburgh 2022) and a rewind
+  into the product. Then the network; KW51 real data with Muse Spark's assessment; the AI Inspector on a real photo; Muse Wonder seeing
+  around the downpipe; Muse Image two years on and repaired; a spoken field command through the voice pipeline;
+  and the global view.
   Every step uses live models and moves on when its result is on screen (Space pauses, → skips, Esc exits).
   *Reset* clears live state between takes, and pinned findings are kept.
 - **Robust model calls**: transient overload and server errors (429/5xx) are retried with backoff; the KW51 replay
@@ -254,6 +269,7 @@ curl -X POST https://<host>/api/ingest -H "Authorization: Bearer $APP_ACCESS_TOK
 | Inspection | `GET /api/inspect/vocabulary`, `POST /api/inspect/segment`, `POST /api/inspect/segment-video`, `POST /api/inspect/workzone`, `GET /api/samples` |
 | Findings | `GET/POST /api/findings`, `DELETE /api/findings/{id}`, `POST /api/findings/{id}/verify`, `POST /api/findings/{id}/lift`, `GET/POST /api/findings/{id}/forecasts` |
 | AI workflows | `POST /api/triage`, `POST /api/missions`, `POST /api/voice`, `GET /api/notes` |
+| Global view | `GET /api/fleet/sites`, `GET /api/fleet/state` |
 | Operations | `GET /api/health`, `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/status` |
 
 Interactive docs: `http://localhost:8000/docs`.
@@ -265,7 +281,9 @@ backend/                 FastAPI · Python 3.12 · uv
   app/main.py              routes, WebSocket, auth/budget wiring, static UI in production
   app/simulator.py         reading stream (replay / ingest / synthetic), health roll-up, alerts
   app/kw51.py              real KW51 data: loading, temperature-compensated baseline, replay clock
-  app/corridor.py          assets, members, sensors, obstacles (illustrative geometry)
+  app/corridor.py          assets, members, sensors, obstacles (illustrative geometry), anchored on real structures
+  app/fleet.py             global portfolio: real sites, simulated condition, repairs and events
+  app/data_static/         anchors.json (OpenStreetMap, ODbL), fleet_sites.json (Wikidata, CC0)
   app/sam31.py             SAM 3.1 photo segmentation, defect→element attribution, measurement
   app/sam31_video.py       clip transcoding (PyAV) and SAM 3.1 video tracks
   app/metrology.py         host-scale measurement and plane-raycasting metrology
@@ -312,6 +330,17 @@ in tests runs only in a test-local stand-in for the sandbox.
 - **Gaussian-splatting damage twins**: S. Wang et al., *Three-dimensional Damage Visualization of Civil
   Structures via Gaussian Splatting-enabled Digital Twins* ([arXiv 2602.16713](https://arxiv.org/abs/2602.16713)).
   Planned work, see below.
+
+- **Real structures**: twin anchors from [OpenStreetMap](https://www.openstreetmap.org/copyright) (© OpenStreetMap
+  contributors, ODbL) via the Overpass API; global-view sites from [Wikidata](https://www.wikidata.org) (CC0), query
+  in `scripts/fetch_fleet_sites.py`.
+- **Cases cited in the cold open**: Genoa, Polcevera (Morandi) viaduct, 14 Aug 2018, 43 deaths; corrosion had been
+  reported to weaken the stays months before
+  ([PBS / AP](https://www.pbs.org/newshour/world/experts-warned-before-italy-bridge-collapse-that-cables-were-corroding-report-says)).
+  Morbi suspension bridge, 30 Oct 2022, 135 deaths; investigators found corroded cables
+  ([Al Jazeera](https://www.aljazeera.com/news/2023/2/20/broken-wires-faulty-renovation-caused-india-bridge-mishap-probe)).
+  Fern Hollow Bridge, Pittsburgh, 28 Jan 2022; rated poor from 2011 and the NTSB found repeated repair
+  recommendations had not been acted on ([NTSB HIR-24-02](https://data.ntsb.gov/investigations/AccidentReports/Reports/HIR2402.pdf)).
 
 Datasets are downloaded locally by `scripts/fetch_data.sh` into `demo-media/` and are not redistributed.
 
