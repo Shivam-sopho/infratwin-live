@@ -75,6 +75,8 @@ export function CorridorMap() {
   const lastRegion = useRef<string | null>(null);
   const [basemap, setBasemap] = useState<"map" | "satellite">("map");
   const autoSatellite = useRef(false); // switched to satellite by selecting an asset (undone on deselect)
+  // Re-frames what the map is focused on (a real structure or a drone flight) after the panel changes size.
+  const refit = useRef<((duration: number) => void) | null>(null);
 
   const assets = useTwin((s) => s.assets);
   const assetStatus = useTwin((s) => s.status.assets);
@@ -158,7 +160,14 @@ export function CorridorMap() {
     map.current = m;
     if (import.meta.env.DEV) (window as unknown as { __map: maplibregl.Map }).__map = m;
     // The presentation layout animates column widths: keep the canvas in step with its container.
-    const ro = new ResizeObserver(() => m.resize());
+    let settle = 0;
+    const ro = new ResizeObserver(() => {
+      m.resize();
+      window.clearTimeout(settle);
+      settle = window.setTimeout(() => {
+        if (refit.current && !m.isMoving()) refit.current(700);
+      }, 250);
+    });
     ro.observe(container.current);
 
     for (const a of assets) {
@@ -176,6 +185,7 @@ export function CorridorMap() {
 
     return () => {
       ro.disconnect();
+      window.clearTimeout(settle);
       pathsReady.current = false;
       m.remove();
       map.current = null;
@@ -227,6 +237,7 @@ export function CorridorMap() {
   useEffect(() => {
     if (!map.current) return;
     if (selectedAssetId === null && assets.length) {
+      refit.current = null;
       if (autoSatellite.current) {
         autoSatellite.current = false;
         setBasemap("map");
@@ -250,9 +261,12 @@ export function CorridorMap() {
       const b = new maplibregl.LngLatBounds();
       asset.site.line.forEach((p) => b.extend(p));
       const bearing = ((asset.type === "tunnel" ? asset.heading_deg : asset.heading_deg - 90) + 360) % 360;
-      map.current.fitBounds(b, { padding: 70, maxZoom: 17.5, pitch: 55, bearing, duration: 2400, essential: true });
+      const m = map.current;
+      refit.current = (duration) => m.fitBounds(b, { padding: 70, maxZoom: 17.5, pitch: 55, bearing, duration, essential: true });
+      refit.current(2400);
       return;
     }
+    refit.current = null;
     map.current.flyTo({
       center: [asset.lng, asset.lat],
       zoom: 15.5,
@@ -270,7 +284,9 @@ export function CorridorMap() {
     if (!map.current || !ms?.path || !asset) return;
     const b = new maplibregl.LngLatBounds();
     ms.path.waypoints.forEach(([x, , z]) => b.extend(localToLngLat(asset, x, z)));
-    map.current.fitBounds(b, { padding: 80, maxZoom: 19, pitch: 55, bearing: asset.heading_deg, duration: 2000 });
+    const m = map.current;
+    refit.current = (duration) => m.fitBounds(b, { padding: 80, maxZoom: 19, pitch: 55, bearing: asset.heading_deg, duration });
+    refit.current(2000);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only re-fit when the selection changes
   }, [selectedMissionId]);
 
