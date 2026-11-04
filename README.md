@@ -8,6 +8,12 @@ arches) coloured by live health. When sensors drift, the twin works out whether 
 structure. When something looks wrong, it inspects photos and video, pins each defect to the member it sits on,
 measures it in millimetres, and plans a drone flight that can actually see it.
 
+> **Built for the [Meta Global AI Developer Hackathon](https://cerebralvalley.ai/e/meta-ai-developer-hackathon)**
+> (Meta × Cerebral Valley, 26 Oct – 5 Nov 2026), problem statement **Build for Your World**.
+> Everything in the demo runs live on Meta's models: **SAM 3.1, Muse Spark, Muse Wonder, Muse Image and Muse Voice
+> Transcribe**, via the Meta Model API. Integrations for Muse Glimmer, Muse Spark Open and SAM 3D are written and
+> need a GPU deployment (see [Not done yet](#not-done-yet)).
+
 ---
 
 ## Run it in 2 minutes
