@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
+import { RECORD } from "../store";
 import { STATUS_COLOR, STATUS_ICON, STATUS_LABEL } from "../theme";
 import type { Status } from "../types";
 
@@ -36,6 +37,20 @@ function sceneTime(t: number) {
   return Math.max(0, T_COLLAPSE_END - (t - T_FACTS_END) * REWIND_SPEED);
 }
 const collapse = (st: number) => clamp((st - 9) / 2.4) ** 2;
+
+/** Soft round sprite so particles read as dust and spray, not squares. */
+function softDot() {
+  const c = document.createElement("canvas");
+  c.width = c.height = 64;
+  const g = c.getContext("2d")!;
+  const r = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+  r.addColorStop(0, "rgba(255,255,255,1)");
+  r.addColorStop(0.5, "rgba(255,255,255,0.45)");
+  r.addColorStop(1, "rgba(255,255,255,0)");
+  g.fillStyle = r;
+  g.fillRect(0, 0, 64, 64);
+  return new THREE.CanvasTexture(c);
+}
 
 function rng(seed: number) {
   return () => {
@@ -162,6 +177,7 @@ function Debris({ clock }: { clock: React.RefObject<number> }) {
   }, []);
   const dustGeo = useMemo(() => new THREE.BufferGeometry().setAttribute("position", new THREE.Float32BufferAttribute(new Float32Array(N_DUST * 3), 3)), []);
   const splashGeo = useMemo(() => new THREE.BufferGeometry().setAttribute("position", new THREE.Float32BufferAttribute(new Float32Array(N_SPLASH * 3), 3)), []);
+  const dot = useMemo(softDot, []);
   const dustMat = useRef<THREE.PointsMaterial>(null);
   const splashMat = useRef<THREE.PointsMaterial>(null);
 
@@ -189,10 +205,10 @@ function Debris({ clock }: { clock: React.RefObject<number> }) {
   return (
     <>
       <points geometry={dustGeo}>
-        <pointsMaterial ref={dustMat} color="#a8a29e" size={1.6} transparent opacity={0} depthWrite={false} />
+        <pointsMaterial ref={dustMat} map={dot} color="#a8a29e" size={2.6} transparent opacity={0} depthWrite={false} />
       </points>
       <points geometry={splashGeo}>
-        <pointsMaterial ref={splashMat} color="#e0f2fe" size={0.9} transparent opacity={0} depthWrite={false} />
+        <pointsMaterial ref={splashMat} map={dot} color="#e0f2fe" size={1.4} transparent opacity={0} depthWrite={false} />
       </points>
     </>
   );
@@ -275,6 +291,13 @@ const ALERTS: { at: number; year: string; text: string; status: Status }[] = [
   { at: 3.4, year: "2020", text: "Inspection: hairline crack, Pier 4. Recommendation: monitor.", status: "nominal" },
   { at: 5.4, year: "2022", text: "Strain gauge SG-12 above watch level.", status: "watch" },
   { at: 7.2, year: "2024", text: "Strain gauge SG-12 critical.", status: "critical" },
+];
+
+// Bottom subtitles, in step with the narration cues (c1 at 2.2 s, c2 at 13.4 s, c3 at the rewind).
+const SUBTITLES: { from: number; to: number; text: string }[] = [
+  { from: 2.2, to: 9.2, text: "Pier four. A hairline crack, noted in 2020. The strain kept climbing. The alerts went unanswered." },
+  { from: 13.4, to: 20.9, text: "This bridge is a simulation. Genoa, Morbi and Pittsburgh were not. The warnings were there. Nobody connected them." },
+  { from: 21.1, to: 23.6, text: "Let's rewind." },
 ];
 
 const FACTS: { at: number; text: string; sub?: string }[] = [
@@ -384,6 +407,12 @@ export function ColdOpen({ onDone, play, muted }: { onDone: () => void; play: (s
         </div>
       </div>
 
+      {SUBTITLES.filter((sub) => t >= sub.from && t < sub.to).map((sub) => (
+        <div key={sub.from} className={`pointer-events-none absolute bottom-8 left-8 ${RECORD ? "right-[440px]" : "right-8 text-center"}`}>
+          <span className="rounded bg-black/70 px-3 py-1.5 text-lg leading-relaxed text-ink [box-decoration-break:clone]">{sub.text}</span>
+        </div>
+      ))}
+
       {rewinding && (
         <div className="pointer-events-none absolute right-6 top-6 flex items-center gap-2 rounded bg-black/60 px-3 py-1.5 text-lg font-semibold tracking-widest text-ink">
           ◀◀ REWIND
@@ -391,6 +420,7 @@ export function ColdOpen({ onDone, play, muted }: { onDone: () => void; play: (s
       )}
 
       <button
+        hidden={RECORD}
         className="absolute bottom-6 right-6 rounded border border-line bg-panel/80 px-3 py-1 text-xs text-ink-2 hover:text-ink"
         onClick={() => {
           if (done.current) return;

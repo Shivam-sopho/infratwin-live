@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../api";
 import N from "../narration.json";
-import { type Focus, useTwin } from "../store";
+import { type Focus, RECORD, useTwin } from "../store";
 import { runVoiceCommand } from "../voiceCommand";
 import { ColdOpen } from "./ColdOpen";
+import { OpeningCard } from "./OpeningCard";
 
 const PHOTO = "dacl10k_v2_train_3113.jpg"; // real inspection photo: spalling + corroded exposed rebar
 const SCENES = 8;
@@ -47,8 +48,11 @@ export function Autopilot() {
     audio.current?.pause();
     if (!narrateRef.current) return;
     const a = new Audio(src);
+    // Recording: the voice is added later, but the run keeps the narration's pacing (muted, still timed).
+    a.muted = RECORD;
     audio.current = a;
     a.play().catch(() => undefined);
+    if (RECORD) ((window as unknown as { __narration?: { src: string; t: number }[] }).__narration ??= []).push({ src, t: performance.now() });
   };
 
   useEffect(() => {
@@ -108,7 +112,7 @@ export function Autopilot() {
         setCold(false);
         setOpening(true);
         play("/demo/narration/s0.mp3");
-        await wait(5000);
+        await wait(8500); // the twin assembles and the three pillars play out
         await waitFor(() => !speaking(), 20000);
         setOpening(false);
 
@@ -208,7 +212,7 @@ export function Autopilot() {
         play("/demo/narration/s7.mp3");
         await wait(4000);
         await waitFor(() => !speaking(), 20000);
-        await wait(1500);
+        await wait(RECORD ? 5000 : 1500);
       } catch (e) {
         if (!(e instanceof Stop)) {
           setCap((p) => ({ scene: p?.scene ?? 0, title: "Demo stopped", text: e instanceof Error ? e.message : String(e) }));
@@ -261,7 +265,7 @@ export function Autopilot() {
   if (cold) {
     return (
       <ColdOpen
-        muted={!narrate}
+        muted={!narrate && !RECORD}
         play={play}
         onDone={() => {
           coldDone.current = true;
@@ -270,32 +274,7 @@ export function Autopilot() {
     );
   }
 
-  if (opening) {
-    return (
-      <div className="fixed inset-0 z-50 grid place-items-center bg-bg p-8">
-        <div className="max-w-3xl text-center">
-          <div className="text-[11px] uppercase tracking-[0.3em] text-accent">Structural health digital twin</div>
-          <div className="mt-3 text-5xl font-semibold text-ink">InfraTwin-Live</div>
-          <p className="mx-auto mt-6 text-xl leading-relaxed text-ink-2">
-            <span className="text-ink">Connects the warnings:</span> watches every structure live, inspects it with AI, and plans what to do next.
-          </p>
-          <div className="mt-8 grid grid-cols-3 gap-3 text-left">
-            {[
-              ["Monitor", "live sensors, real bridge data"],
-              ["Inspect", "AI reads every photo"],
-              ["Act", "drone plans, forecasts, voice"],
-            ].map(([t, d]) => (
-              <div key={t} className="rounded-lg border border-line bg-panel p-3">
-                <div className="font-semibold text-accent">{t}</div>
-                <div className="text-sm text-ink-2">{d}</div>
-              </div>
-            ))}
-          </div>
-          <div className="mt-6 text-xs text-ink-3">Built on Meta: SAM 3.1 · Muse Spark · Muse Wonder · Muse Image · Muse Voice Transcribe</div>
-        </div>
-      </div>
-    );
-  }
+  if (opening) return <OpeningCard text={N.s0.text} />;
 
   if (closing) {
     return (
@@ -306,9 +285,13 @@ export function Autopilot() {
           <div className="mt-3 text-lg text-ink-2">Monitor · Inspect · Act</div>
           <p className="mx-auto mt-4 max-w-xl text-sm text-ink-2">{N.s7.text.replace(/^Monitor, inspect, act\. /, "")}</p>
           <div className="mt-5 text-xs text-ink-3">SAM 3.1 · Muse Spark · Muse Wonder · Muse Image · Muse Voice Transcribe{glimmer ? " · Muse Glimmer" : ""}</div>
-          <button className="mt-6 rounded-md border border-line px-4 py-1.5 text-xs text-ink-2 hover:text-ink" onClick={() => (ctl.current.stop = true)}>
-            Close
-          </button>
+          <div className="mt-4 text-sm text-ink">github.com/Shivam-sopho/infratwin-live</div>
+          <div className="text-[11px] text-ink-3">Open source · MIT</div>
+          {!RECORD && (
+            <button className="mt-6 rounded-md border border-line px-4 py-1.5 text-xs text-ink-2 hover:text-ink" onClick={() => (ctl.current.stop = true)}>
+              Close
+            </button>
+          )}
         </div>
       </div>
     );
@@ -316,7 +299,8 @@ export function Autopilot() {
 
   return (
     <div className="pointer-events-none fixed inset-x-0 bottom-0 z-50 h-[124px] border-t border-accent/40 bg-bg">
-      <div className="pointer-events-auto mx-auto flex h-full max-w-6xl flex-col justify-center px-6 py-3">
+      {/* recording: left-aligned, the bottom-right corner stays free for the presenter's face cam */}
+      <div className={`pointer-events-auto flex h-full flex-col justify-center px-6 py-3 ${RECORD ? "ml-4 mr-[440px]" : "mx-auto max-w-6xl"}`}>
         <div className="flex items-center gap-3">
           <div className="flex gap-1" aria-label={`Scene ${cap?.scene ?? 0} of ${SCENES}`}>
             {Array.from({ length: SCENES }, (_, i) => (
@@ -324,7 +308,7 @@ export function Autopilot() {
             ))}
           </div>
           {cap?.models && <span className="truncate text-[11px] text-accent">{cap.models}</span>}
-          <span className="ml-auto flex shrink-0 items-center gap-1.5 text-[11px]">
+          <span className={`ml-auto flex shrink-0 items-center gap-1.5 text-[11px] ${RECORD ? "hidden" : ""}`}>
             <button
               className={`rounded border px-2 py-0.5 ${narrate ? "border-accent text-ink" : "border-line text-ink-3"}`}
               onClick={() => setNarrate((n) => !n)}
@@ -344,8 +328,8 @@ export function Autopilot() {
           </span>
         </div>
         <div className="mt-1.5 flex items-baseline gap-3">
-          <div className="shrink-0 text-xl font-semibold text-ink">{cap?.title ?? "Starting…"}</div>
-          <p className="text-[15px] leading-snug text-ink-2">{cap?.text}</p>
+          <div className={`shrink-0 font-semibold text-ink ${RECORD ? "text-2xl" : "text-xl"}`}>{cap?.title ?? "Starting…"}</div>
+          <p className={`leading-snug text-ink-2 ${RECORD ? "text-lg" : "text-[15px]"}`}>{cap?.text}</p>
         </div>
         {cap?.working && (
           <p className="mt-2 flex items-center gap-2 text-xs text-accent">

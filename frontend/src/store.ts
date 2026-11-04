@@ -12,6 +12,8 @@ export interface Stage {
 }
 
 export type View = "corridor" | "globe";
+/** `?record`: a clean, self-paced run for screen recording (no on-screen controls, voice muted, face-cam corner kept clear). */
+export const RECORD = typeof window !== "undefined" && new URLSearchParams(window.location.search).has("record");
 /** Where the globe should fly (set by the demo or the dashboard lists). */
 export interface GlobeTarget {
   lng: number;

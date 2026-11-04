@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
-import { useTwin } from "../store";
+import { RECORD, useTwin } from "../store";
 import { VoiceButton } from "./VoiceButton";
 
 const DEMO_COMPONENT = "B07.P4";
@@ -107,7 +107,7 @@ export function TopBar() {
         </button>
         <button
           onClick={() => useTwin.getState().setTourOpen(true)}
-          className="keep rounded-md bg-accent px-3 py-1 text-xs font-medium text-bg hover:opacity-90"
+          className={`${RECORD ? "" : "keep"} rounded-md bg-accent px-3 py-1 text-xs font-medium text-bg hover:opacity-90`}
           title="Runs the whole story by itself, with captions (Space pauses, → skips, Esc exits)"
         >
           ▶ Play demo
