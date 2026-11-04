@@ -25,7 +25,8 @@ export default function App() {
   const view = useTwin((s) => s.view);
   const focus = useTwin((s) => s.stage.focus);
   // Presentation "camera": the panel the story is about gets the space (animated on large screens).
-  const columns = { map: "2.4fr 1fr 0px", center: "0.45fr 2.2fr 0px", "twin+side": "0.5fr 1.6fr 460px" }[focus ?? "map"];
+  // the map keeps a real share in every stage: its satellite close-up shows the real structure under each twin
+  const columns = { map: "2.4fr 1fr 0px", center: "0.75fr 2fr 0px", "twin+side": "0.9fr 1.5fr 440px" }[focus ?? "map"];
 
   return (
     <div className={`flex h-dvh flex-col bg-bg text-ink ${presenting ? "pb-[124px]" : ""}`}>
