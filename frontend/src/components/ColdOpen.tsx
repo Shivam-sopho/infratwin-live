@@ -408,7 +408,7 @@ export function ColdOpen({ onDone, play, muted }: { onDone: () => void; play: (s
       </div>
 
       {SUBTITLES.filter((sub) => t >= sub.from && t < sub.to).map((sub) => (
-        <div key={sub.from} className={`pointer-events-none absolute bottom-8 left-8 ${RECORD ? "right-[440px]" : "right-8 text-center"}`}>
+        <div key={sub.from} className={`pointer-events-none absolute bottom-8 left-8 ${RECORD ? "right-[340px]" : "right-8 text-center"}`}>
           <span className="rounded bg-black/70 px-3 py-1.5 text-lg leading-relaxed text-ink [box-decoration-break:clone]">{sub.text}</span>
         </div>
       ))}

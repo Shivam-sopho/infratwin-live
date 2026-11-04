@@ -5,6 +5,7 @@ import { type Focus, RECORD, useTwin } from "../store";
 import { runVoiceCommand } from "../voiceCommand";
 import { ColdOpen } from "./ColdOpen";
 import { OpeningCard } from "./OpeningCard";
+import { ClosingCard } from "./ClosingCard";
 
 const PHOTO = "dacl10k_v2_train_3113.jpg"; // real inspection photo: spalling + corroded exposed rebar
 const SCENES = 8;
@@ -276,31 +277,19 @@ export function Autopilot() {
 
   if (opening) return <OpeningCard text={N.s0.text} />;
 
-  if (closing) {
+  if (closing)
     return (
-      <div className="fixed inset-0 z-50 grid place-items-center bg-bg/90 p-6 backdrop-blur-sm">
-        <div className="text-center">
-          <div className="text-[11px] uppercase tracking-[0.3em] text-accent">Structural health digital twin</div>
-          <div className="mt-2 text-4xl font-semibold text-ink">InfraTwin-Live</div>
-          <div className="mt-3 text-lg text-ink-2">Monitor · Inspect · Act</div>
-          <p className="mx-auto mt-4 max-w-xl text-sm text-ink-2">{N.s7.text.replace(/^Monitor, inspect, act\. /, "")}</p>
-          <div className="mt-5 text-xs text-ink-3">SAM 3.1 · Muse Spark · Muse Wonder · Muse Image · Muse Voice Transcribe{glimmer ? " · Muse Glimmer" : ""}</div>
-          <div className="mt-4 text-sm text-ink">github.com/Shivam-sopho/infratwin-live</div>
-          <div className="text-[11px] text-ink-3">Open source · MIT</div>
-          {!RECORD && (
-            <button className="mt-6 rounded-md border border-line px-4 py-1.5 text-xs text-ink-2 hover:text-ink" onClick={() => (ctl.current.stop = true)}>
-              Close
-            </button>
-          )}
-        </div>
-      </div>
+      <ClosingCard
+        text={N.s7.text}
+        models={`SAM 3.1 · Muse Spark · Muse Wonder · Muse Image · Muse Voice Transcribe${glimmer ? " · Muse Glimmer" : ""}`}
+        onClose={() => (ctl.current.stop = true)}
+      />
     );
-  }
 
   return (
     <div className="pointer-events-none fixed inset-x-0 bottom-0 z-50 h-[124px] border-t border-accent/40 bg-bg">
       {/* recording: left-aligned, the bottom-right corner stays free for the presenter's face cam */}
-      <div className={`pointer-events-auto flex h-full flex-col justify-center px-6 py-3 ${RECORD ? "ml-4 mr-[440px]" : "mx-auto max-w-6xl"}`}>
+      <div className={`pointer-events-auto flex h-full flex-col justify-center px-6 py-3 ${RECORD ? "ml-4 mr-[340px]" : "mx-auto max-w-6xl"}`}>
         <div className="flex items-center gap-3">
           <div className="flex gap-1" aria-label={`Scene ${cap?.scene ?? 0} of ${SCENES}`}>
             {Array.from({ length: SCENES }, (_, i) => (

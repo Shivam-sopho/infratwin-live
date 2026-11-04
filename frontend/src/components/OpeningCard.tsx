@@ -51,8 +51,12 @@ function Member({ pos, size, kind, at, clock }: { pos: [number, number, number];
   );
 }
 
-/** Sensor dots on the piers light up once the twin is built; Pier 4's turns amber (the story's next chapter). */
-function Sensors({ clock }: { clock: React.RefObject<number> }) {
+/**
+ * Sensor dots on the piers light up once the twin is built. Pier 4's turns amber (the story's next chapter);
+ * in the repaired variant (the closing) it then turns back to green with a pulse: the warning was connected.
+ */
+function Sensors({ clock, repaired }: { clock: React.RefObject<number>; repaired?: boolean }) {
+  const ring = useRef<THREE.Mesh>(null);
   const dots = useRef<(THREE.Mesh | null)[]>([]);
   useFrame(() => {
     const t = clock.current;
@@ -62,8 +66,16 @@ function Sensors({ clock }: { clock: React.RefObject<number> }) {
       const pulse = 1 + 0.35 * Math.sin(t * 5 + i);
       d.scale.setScalar(on * pulse);
       const mat = d.material as THREE.MeshBasicMaterial;
-      mat.color.set(i === 3 && t > 4.6 ? STATUS_COLOR.watch : STATUS_COLOR.nominal);
+      const amber = repaired ? t > 3.6 && t < 5.4 : t > 4.6;
+      mat.color.set(i === 3 && amber ? STATUS_COLOR.watch : STATUS_COLOR.nominal);
     });
+    if (ring.current) {
+      // repaired: a green ring expands from Pier 4 when it turns healthy again
+      const p = clamp((t - 5.4) / 1.4);
+      ring.current.visible = !!repaired && p > 0 && p < 1;
+      ring.current.scale.setScalar(1 + p * 9);
+      (ring.current.material as THREE.MeshBasicMaterial).opacity = 0.8 * (1 - p);
+    }
   });
   return (
     <>
@@ -73,6 +85,10 @@ function Sensors({ clock }: { clock: React.RefObject<number> }) {
           <meshBasicMaterial color={STATUS_COLOR.nominal} toneMapped={false} />
         </mesh>
       ))}
+      <mesh ref={ring} position={[-HALF + SPAN * 4, PIER_H * 0.6, 3.9]} visible={false}>
+        <ringGeometry args={[1.1, 1.4, 48]} />
+        <meshBasicMaterial color={STATUS_COLOR.nominal} transparent toneMapped={false} side={THREE.DoubleSide} />
+      </mesh>
     </>
   );
 }
@@ -86,7 +102,7 @@ function Rig({ clock }: { clock: React.RefObject<number> }) {
   return null;
 }
 
-function TwinAssembly({ clock }: { clock: React.RefObject<number> }) {
+export function TwinAssembly({ clock, repaired }: { clock: React.RefObject<number>; repaired?: boolean }) {
   return (
     <Canvas dpr={[1, 1.5]} camera={{ position: [120, 60, 140], fov: 38, near: 1, far: 2000 }}>
       <hemisphereLight args={["#cbd5e1", "#1f2937", 0.9]} />
@@ -107,7 +123,7 @@ function TwinAssembly({ clock }: { clock: React.RefObject<number> }) {
           clock={clock}
         />
       ))}
-      <Sensors clock={clock} />
+      <Sensors clock={clock} repaired={repaired} />
       <Rig clock={clock} />
     </Canvas>
   );
@@ -216,7 +232,7 @@ export function OpeningCard({ text }: { text: string }) {
           Built on Meta: SAM 3.1 · Muse Spark · Muse Wonder · Muse Image · Muse Voice Transcribe
         </div>
       </div>
-      <div className={`pointer-events-none absolute bottom-8 left-8 ${RECORD ? "right-[440px]" : "right-8 text-center"}`}>
+      <div className={`pointer-events-none absolute bottom-8 left-8 ${RECORD ? "right-[340px]" : "right-8 text-center"}`}>
         <span className="rounded bg-black/70 px-3 py-1.5 text-lg leading-relaxed text-ink [box-decoration-break:clone]">{text}</span>
       </div>
     </div>

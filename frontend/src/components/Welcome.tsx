@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useTwin } from "../store";
+import { useEffect, useState } from "react";
+import { RECORD, useTwin } from "../store";
 
 const KEY = "infratwin.welcome.dismissed";
 const seen = () => {
@@ -32,8 +32,13 @@ export function Welcome() {
   const [open, setOpen] = useState(() => !seen());
   const setTourOpen = useTwin((s) => s.setTourOpen);
   const noKey = useTwin((s) => s.capsKnown && !s.caps.meta);
-  if (!open) return null;
-  const close = (tour: boolean) => {
+  const running = useTwin((s) => s.tourOpen);
+  // Starting the demo from anywhere (e.g. the top bar) counts as dismissing the welcome; recordings never show it.
+  useEffect(() => {
+    if (running && open) close(false);
+  }, [running]); // eslint-disable-line react-hooks/exhaustive-deps
+  if (!open || running || RECORD) return null;
+  function close(tour: boolean) {
     try {
       localStorage.setItem(KEY, "1");
     } catch {
@@ -41,7 +46,7 @@ export function Welcome() {
     }
     setOpen(false);
     if (tour) setTourOpen(true);
-  };
+  }
   return (
     <div className="fixed inset-0 z-40 grid place-items-center bg-bg/85 p-4 backdrop-blur-sm">
       <div role="dialog" aria-label="About InfraTwin-Live" className="w-full max-w-3xl rounded-xl border border-line bg-panel p-6 shadow-2xl">
