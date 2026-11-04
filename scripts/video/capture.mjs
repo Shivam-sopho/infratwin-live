@@ -20,9 +20,10 @@ ws.onmessage = e => {
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const js = async expr => (await send("Runtime.evaluate", { expression: expr, awaitPromise: true, returnByValue: true })).result?.result?.value;
 await send("Page.enable"); await send("Runtime.enable");
-await send("Emulation.setDeviceMetricsOverride", { width: 1920, height: 1080, deviceScaleFactor: 1, mobile: false });
+// Chrome is launched with --force-device-scale-factor=2 (the screencast ignores emulated scale); pin the viewport
+await send("Emulation.setDeviceMetricsOverride", { width: 1440, height: 810, deviceScaleFactor: 2, mobile: false });
 await send("Page.navigate", { url: "http://localhost:5173/?record" }); await sleep(8000);
-await send("Page.startScreencast", { format: "jpeg", quality: 85, maxWidth: 1920, maxHeight: 1080, everyNthFrame: 2 });
+await send("Page.startScreencast", { format: "jpeg", quality: 95, maxWidth: 2880, maxHeight: 1620, everyNthFrame: 1 });
 await sleep(1500);
 console.log(await js(`(()=>{const b=[...document.querySelectorAll('button')].find(b=>b.textContent.trim().startsWith('▶ Play demo')); if(!b) return 'no button'; b.click(); return 'started'})()`));
 const startWall = Date.now() / 1000;
